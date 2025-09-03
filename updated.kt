@@ -4,7 +4,6 @@ import kotlin.system.exitProcess
 
 // entry point
 object Alpha {
-    @JvmStatic // static method that converts it into jvm bytecode
     fun main(args: Array<String>) {
         // java -jar updated.jar one two three
         if (args.size > 1) {
@@ -28,10 +27,11 @@ object Alpha {
         // run(inputString))
     }
 
+    // read code from terminal
     private fun runPrompt() {
         while(true){
             print(">")
-            // if enter, set line to the string. if ctrl D EOF, exit
+            // if enter, set line to the string. if ctrl D or C EOF, exit
             val line = readLine() ?: break
             println("You typed: $line")
             // run(line)
@@ -45,5 +45,17 @@ object Alpha {
         var tokens: MutableList<Token> = scanner.scanTokens()
         // print tokens for now
         println("Running: $source")
+    }
+
+    // error handling
+    // shortcut for most errors
+    fun error (line: Int, message: String) {
+        report(line, "", message)
+    }
+
+    // engine for errors
+    private fun report (line: Int, where: String, message: String) {
+        System.err.println("[line $line] Error at $where: $message")
+        var hadError = true
     }
 }
