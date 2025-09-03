@@ -4,6 +4,8 @@ import kotlin.system.exitProcess
 
 // entry point
 object Alpha {
+    var errorExists: Boolean = false
+
     fun main(args: Array<String>) {
         // java -jar updated.jar one two three
         if (args.size > 1) {
@@ -16,15 +18,14 @@ object Alpha {
         } else {
             runPrompt()
         }
-
     }
 
     // read code from another file 
     private fun runFile(path: String) {
         val inputStream: InputStream = File(path).inputStream() // open the file for reading: create a file object and open it as a stream of bytes
         val inputString = inputStream.reader().use {it.readText()} // reader() to wrap byte stream for reading, adding .use to close stream after use, it.readText() for read file as a single string
-        println(inputString)
-        // run(inputString))
+        run(inputString)
+        if (errorExists) exitProcess(65)
     }
 
     // read code from terminal
@@ -33,8 +34,8 @@ object Alpha {
             print(">")
             // if enter, set line to the string. if ctrl D or C EOF, exit
             val line = readLine() ?: break
-            println("You typed: $line")
-            // run(line)
+            run(line)
+            errorExists = false
         }
     }
 
@@ -56,6 +57,6 @@ object Alpha {
     // engine for errors
     private fun report (line: Int, where: String, message: String) {
         System.err.println("[line $line] Error at $where: $message")
-        var hadError = true
+        errorExists = true
     }
 }
