@@ -25,6 +25,7 @@ object Alpha {
         val inputStream: InputStream = File(path).inputStream() // open the file for reading: create a file object and open it as a stream of bytes
         val inputString = inputStream.reader().use {it.readText()} // reader() to wrap byte stream for reading, adding .use to close stream after use, it.readText() for read file as a single string
         run(inputString)
+        // kill the file
         if (errorExists) exitProcess(65)
     }
 
@@ -35,6 +36,7 @@ object Alpha {
             // if enter, set line to the string. if ctrl D or C EOF, exit
             val line = readLine() ?: break
             run(line)
+            // dont kill the REPL
             errorExists = false
         }
     }
