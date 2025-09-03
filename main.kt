@@ -44,9 +44,13 @@ class TokenScanner (val source: String) {
             '>' -> addToken(if (match('=')) GREATER_EQUAL else GREATER)
             // Longer Lexemes
             '/' -> if (match('/')) {
-                while (peek() != '\n' && !isAtEnd()) advance();
+                while (peek() != '\n' && !isAtEnd()) advance(); // comments go until we reach the end of the line
             } else {
                 addToken(SLASH)
+            }
+            ' ', '\r', '\t' -> {} // ignore white space and go back to beginning of scan loop
+            '\n' -> {
+                line++
             }
             // Error
             else -> throw IllegalArgumentException("Unexpected character: $c at line $line")
