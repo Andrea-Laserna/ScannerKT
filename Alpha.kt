@@ -1,3 +1,8 @@
+/* run via: 
+kotlinc Alpha.kt -include-runtime -d Alpha.jar
+java -jar Alpha.jar
+*/ 
+
 import java.io.File
 import java.io.InputStream
 import kotlin.system.exitProcess
