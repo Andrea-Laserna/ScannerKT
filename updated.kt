@@ -2,6 +2,28 @@ import java.io.File
 import java.io.InputStream
 import kotlin.system.exitProcess
 
+// fixed master list of language's alphabet for type safety
+enum class TokenType {
+    // Single-character tokens
+    LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
+    COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
+
+    // One or two character tokens
+    BANG, BANG_EQUAL,
+    EQUAL, EQUAL_EQUAL,
+    GREATER, GREATER_EQUAL,
+    LESS, LESS_EQUAL,
+
+    // Literals
+    IDENTIFIER, STRING, NUMBER,
+
+    // Keywords
+    AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
+    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+
+    EOF
+}
+
 // entry point
 object Alpha {
     var errorExists: Boolean = false
@@ -42,8 +64,7 @@ object Alpha {
     }
 
     private fun run(source: String) {
-        // scan the string
-        Scanner scanner = new Scanner(source)
+        val scanner = TokenScanner(source)
         // scan for tokens in the string
         var tokens: MutableList<Token> = scanner.scanTokens()
         // print tokens for now
@@ -61,4 +82,8 @@ object Alpha {
         System.err.println("[line $line] Error at $where: $message")
         errorExists = true
     }
+}
+
+class TokenScanner {
+    
 }
