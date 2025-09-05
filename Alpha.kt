@@ -71,11 +71,22 @@ class TokenScanner(val source: String) {
             '+' -> addToken(TokenType.PLUS, null)
             ';' -> addToken(TokenType.SEMICOLON, null)
             '*' -> addToken(TokenType.STAR, null)
+            // insert operators
+
+            // insert longer lexemes: division, new lines, white space
+
+            // insert string literals
+            
+            // insert number literals
+
+            // insert reserved words and identifiers
+
             else -> Alpha.error(line, "Unexpected character: $c")
         }
 
     }
 
+    // get the current character to scan
     private fun advance(): Char {
         return source[current++]
     }
