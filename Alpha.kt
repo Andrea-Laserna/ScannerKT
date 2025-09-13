@@ -72,6 +72,7 @@ class TokenScanner(val source: String) {
             ';' -> addToken(TokenType.SEMICOLON, null)
             '*' -> addToken(TokenType.STAR, null)
             // insert operators
+            '!' -> addToken((if match('=')) TokenType.BANG_EQUAL else TokenType.BANG, null)
 
             // insert longer lexemes: division, new lines, white space
 
@@ -95,6 +96,11 @@ class TokenScanner(val source: String) {
         // computing for the lexeme
         val text: String = source.substring(start, current)
         tokens.add(Token(type, text, literal, line))
+    }
+
+    private match(expected: Char): Boolean {
+        if (isatEnd()) return false
+        if (source[current] != expected) return false
     }
     
 }
