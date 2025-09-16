@@ -31,10 +31,7 @@ enum class TokenType {
 
 class Token (val type: TokenType, val lexeme: String, val literal: Any?, val line: Int) {
     override public fun toString(): String { // print readable token instead of memory address
-        return String.format(
-            "%-12s | %-15s | %-10s | %-3d",
-            type, lexeme, literal ?: "null", line
-        )
+        return ("Type=${type}, Lexeme=${lexeme}, Literal=${literal}, Line=${line}")
     }
 }
 
@@ -248,8 +245,6 @@ object Alpha {
         // scan for tokens in the string
         val tokens: List<Token> = scanner.scanTokens()
         // print tokens for now
-        println("    TYPE     |     lexeme      |   literal  | line ")
-        println("___________________________________________________")
         for (token in tokens) {
             println(token)
         }
