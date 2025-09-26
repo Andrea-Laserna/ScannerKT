@@ -84,9 +84,18 @@ class TokenScanner(val source: String) {
     }
 
     private fun comment() {
-        while(!isAtEnd() && showCurrent() != '\n'){
-            advance()
+        if(nextIs('#')) {
+            while (showCurrent() != '#' && showNext()== '#' && !isAtEnd()) {
+                advance()
+                advance()
+                advance()
+            }
+        }else{
+            while(!isAtEnd() && showCurrent() != '\n'){
+                advance()
+            }
         }
+
         val comment = source.substring(start+1, current) // start after #
         addToken(TokenType.COMMENT, comment)
     }
@@ -158,17 +167,7 @@ class TokenScanner(val source: String) {
             '#' -> comment()
 
             //either division or comment
-            '/' -> if(nextIs('/')) {
-                while (showCurrent() != '\n' && !isAtEnd()) advance()
-            }
-            else if (nextIs('*')){
-                while (!isAtEnd() && showCurrent() != '*' && showNext() != '/') advance()
-                advance()
-                advance()
-            }
-            else {
-                addToken(TokenType.SLASH, null)
-            }
+            '/' -> addToken(TokenType.SLASH, null)
 
             // insert operators
             '!' -> addToken(if(nextIs('=')) TokenType.BANG_EQUAL else TokenType.BANG, null)
@@ -206,8 +205,6 @@ class TokenScanner(val source: String) {
         tokens.add(Token(type, text, literal, line))
     }
 }
-
-
 
 // entry point
 object Alpha {
