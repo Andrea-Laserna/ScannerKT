@@ -24,7 +24,7 @@ enum class TokenType {
 
     // Keywords
     AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NONE, OR,
-    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE, NOT
+    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE, NOT,
 
     EOF
 }
@@ -79,7 +79,8 @@ class TokenScanner(val source: String) {
         advance()
 
         val stringLiteral = source.substring(start + 1, current - 1) //value or start is index of ("). so remove
-        addToken(TokenType.STRING, stringLiteral)
+        val cleaned = stringLiteral.replace(("\r\n"), "")
+        addToken(TokenType.STRING, cleaned)
     }
 
     private fun comment() {
