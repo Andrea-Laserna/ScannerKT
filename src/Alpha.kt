@@ -11,7 +11,7 @@ import kotlin.system.exitProcess
 enum class TokenType {
     // Single-character tokens
     LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
-    COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
+    COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR, COMMENT,
 
     // One or two character tokens
     BANG, BANG_EQUAL,
@@ -82,6 +82,14 @@ class TokenScanner(val source: String) {
         addToken(TokenType.STRING, stringLiteral)
     }
 
+    private fun comment() {
+        while(!isAtEnd() && showCurrent() != '\n'){
+            advance()
+        }
+        val comment = source.substring(start+1, current) // start after #
+        addToken(TokenType.COMMENT, comment)
+    }
+
     private  fun showCurrent(): Char {
         return if(isAtEnd())'\u0000' else source[current]
     }
@@ -147,6 +155,7 @@ class TokenScanner(val source: String) {
             '+' -> addToken(TokenType.PLUS, null)
             ';' -> addToken(TokenType.SEMICOLON, null)
             '*' -> addToken(TokenType.STAR, null)
+            '#' -> comment()
 
             //either division or comment
             '/' -> if(nextIs('/')) {
