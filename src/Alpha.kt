@@ -23,8 +23,8 @@ enum class TokenType {
     IDENTIFIER, STRING, NUMBER, // sa number nang isahon ta nalang ang mga int,double, float?
 
     // Keywords
-    AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+    AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NONE, OR,
+    PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE, NOT
 
     EOF
 }
@@ -128,7 +128,6 @@ class TokenScanner(val source: String) {
             "for" to TokenType.FOR,
             "fun" to TokenType.FUN,
             "if" to TokenType.IF,
-            "nil" to TokenType.NIL,
             "or" to TokenType.OR,
             "print" to TokenType.PRINT,
             "return" to TokenType.RETURN,
@@ -284,3 +283,5 @@ fun main(args: Array<String>) {
 // hindi nag eerror if walang closing parenthesis
 // siguro yung rules para sa syntax ng functions?
 // ano pa ba yun plng naisip ko
+
+// data types
