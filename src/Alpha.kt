@@ -132,20 +132,20 @@ class TokenScanner(val source: String) {
     companion object {
         val keywords: Map<String, TokenType> = mapOf(
             "and" to TokenType.AND,
-            "class" to TokenType.CLASS,
-            "else" to TokenType.ELSE,
-            "false" to TokenType.FALSE,
-            "for" to TokenType.FOR,
-            "fun" to TokenType.FUN,
-            "if" to TokenType.IF,
+            "station" to TokenType.CLASS,
+            "elsewise" to TokenType.ELSE,
+            "untrue" to TokenType.FALSE,
+            "concerning" to TokenType.FOR,
+            "affair" to TokenType.FUN,
+            "perchance" to TokenType.IF,
             "or" to TokenType.OR,
-            "print" to TokenType.PRINT,
-            "return" to TokenType.RETURN,
-            "super" to TokenType.SUPER,
+            "unfold" to TokenType.PRINT,
+            "hasten" to TokenType.RETURN,
+            "wondrous" to TokenType.SUPER,
             "this" to TokenType.THIS,
             "true" to TokenType.TRUE,
-            "var" to TokenType.VAR,
-            "while" to TokenType.WHILE
+            "allow" to TokenType.VAR,
+            "whilst" to TokenType.WHILE
         )
     }
 
