@@ -1,0 +1,2 @@
+allow x = true
+print x

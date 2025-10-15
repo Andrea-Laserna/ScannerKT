@@ -13,7 +13,7 @@ enum class TokenType {
     LESS, LESS_EQUAL,
 
     // Literals
-    IDENTIFIER, STRING, NUMBER, // sa number nang isahon ta nalang ang mga int,double, float?
+    IDENTIFIER, STRING, INT, FLOAT, BOOL,
 
     // Keywords
     AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NONE, OR,
@@ -21,3 +21,4 @@ enum class TokenType {
 
     EOF
 }
+

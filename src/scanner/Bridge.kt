@@ -1,6 +1,6 @@
 package scanner
 /* run via:
-kotlinc scanner.Bridge.kt -include-runtime -d scanner.Bridge.jar
+kotlinc (Get-ChildItem -Filter *.kt | ForEach-Object { $_.FullName }) -include-runtime -d Bridge.jar
 java -jar scanner.Bridge.jar
 */
 import java.io.File

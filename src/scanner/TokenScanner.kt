@@ -78,13 +78,22 @@ data class TokenScanner(val source: String) {
         //value or start is index of first digit
         while(showCurrent().isDigit()) advance()
 
+        var isFloat = false
+
         if (showCurrent() == '.' && showNext().isDigit()){ // to allow only a decimal followed by a digit, 1.A di pwede
+            isFloat = true
             advance()
             while(showCurrent().isDigit()) advance() // for digits after the dot.
         }
 
-        val value = source.substring(start, current).toDouble()
-        addToken(TokenType.NUMBER, value)
+        val text = source.substring(start, current)
+        val value:Number = if(isFloat) text.toDouble() else text.toInt()
+
+        if (isFloat){
+            addToken(TokenType.FLOAT, value)
+        } else {
+            addToken(TokenType.INT, value)
+        }
     }
 
     private fun identifier(){
@@ -96,10 +105,15 @@ data class TokenScanner(val source: String) {
         } else {
             TokenType.IDENTIFIER
         }
-        addToken(type)
+
+        val literal = when (type) {
+            TokenType.TRUE -> true
+            TokenType.FALSE -> false
+            else -> null
+        }
+
+        addToken(type, literal)
     }
-
-
 
     // adds token types to a token list
     private fun scanToken() {
@@ -130,7 +144,7 @@ data class TokenScanner(val source: String) {
             // insert longer lexemes: division, new lines, white space
             ' ', '\r', '\t' -> { /* padayun lang */ }
             '\n' -> line++
-
+ 
             // insert string literals
             '"' -> string()
 
