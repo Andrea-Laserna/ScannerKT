@@ -16,6 +16,7 @@ object Keywords{
         "this" to TokenType.THIS,
         "true" to TokenType.TRUE,
         "allow" to TokenType.VAR,
+        "not" to TokenType.NOT,
         "whilst" to TokenType.WHILE
     )
 }

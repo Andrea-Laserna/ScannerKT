@@ -1,0 +1,93 @@
+package parser
+
+class Grammar {
+
+}
+
+//TODO: Abstract-> definition
+// Unambiguous dapat
+/*
+
+<expression>
+<expression> ->
+<equality>
+<comparison>
+<term>
+<factor>
+<exponent>
+<grouped>
+
+1 + 2 * -(-3- 4)
+
+(1 + 2) == -(3- 0)
+
+<unary>
+<primary>
+
+*/
+
+
+
+
+/*
+
+Expr        → Equality
+
+Equality    → Comparison { ( "==" | "!=" ) Comparison }
+
+Comparison  → Term { ( ">" | ">=" | "<" | "<=" ) Term }
+
+Term        → Factor { ( "+" | "-" ) Factor }
+
+Factor      → Exponent { ( "*" | "/" ) Exponent }
+
+Exponent    → Unary [ "^" Exponent ]        // right-associative
+
+Unary       → ( "-" | "+" | "!" ) Unary
+             | Primary
+
+Primary     → NUMBER
+             | IDENTIFIER
+             | "(" Expr ")"
+
+*/
+
+/*
+Expr           → Equality
+
+Equality       → Comparison EqualityTail
+EqualityTail   → "==" Comparison EqualityTail
+               | "!=" Comparison EqualityTail
+               | ε
+
+Comparison     → Term ComparisonTail
+ComparisonTail → ">" Term ComparisonTail
+               | ">=" Term ComparisonTail
+               | "<" Term ComparisonTail
+               | "<=" Term ComparisonTail
+               | ε
+
+Term           → Factor TermTail
+TermTail       → "+" Factor TermTail
+               | "-" Factor TermTail
+               | ε
+
+Factor         → Exponent FactorTail
+FactorTail     → "*" Exponent FactorTail
+               | "/" Exponent FactorTail
+               | ε
+
+Exponent       → Unary ExponentTail
+ExponentTail   → "^" Exponent       // right recursion ⇒ right-assoc
+               | ε
+
+Unary          → "-" Unary
+               | "+" Unary
+               | "!" Unary
+               | Primary
+
+Primary        → NUMBER
+               | IDENTIFIER
+               | "(" Expr ")"
+
+*/

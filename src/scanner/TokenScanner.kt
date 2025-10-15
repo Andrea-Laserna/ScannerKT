@@ -130,6 +130,7 @@ data class TokenScanner(val source: String) {
             '+' -> addToken(TokenType.PLUS, null)
             ';' -> addToken(TokenType.SEMICOLON, null)
             '*' -> addToken(TokenType.STAR, null)
+            '^' -> addToken(TokenType.CARET, null)
             '#' -> comment()
 
             //either division or comment
