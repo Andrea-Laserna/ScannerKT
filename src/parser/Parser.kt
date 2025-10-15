@@ -2,32 +2,42 @@ package parser
 
 import scanner.Token
 import scanner.TokenType
+import kotlin.math.exp
+
 // ps. ga base lng ko sng algo sa LEC4 slide ni ma'am ara
 
 class Parser(val tokens: TokenStream<Token>) {
 
-    private fun expr(){
-        equality()
+    //entry
+    private fun expr(): Expression{
+        return equality()
     }
-    private fun equality(){
-        comparison()
+    private fun equality(): Expression{
+        var expr = comparison()
         while (tokens.nextToken?.type == TokenType.EQUAL_EQUAL ||
             tokens.nextToken?.type == TokenType.BANG_EQUAL){
+            val operation = tokens.current
             tokens.advance()
-            comparison()
+            val right = comparison()
+            expr = Expression.Binary(expr, operation, right)
         }
+        return expr
     }
-    private fun comparison(){
-        term()
+
+    private fun comparison(): Expression{
+        var expr = term()
         while (tokens.nextToken?.type == TokenType.GREATER ||
             tokens.nextToken?.type == TokenType.GREATER_EQUAL ||
             tokens.nextToken?.type == TokenType.LESS ||
             tokens.nextToken?.type == TokenType.LESS_EQUAL) {
             tokens.advance()
-            term()
+            val operation = tokens.current
+            val right = term()
+            expr = Expression.Binary(expr, operation, right)
         }
+        return expr
     }
-    private fun term(){
+    private fun term(): Expression{
         factor()
         while (tokens.nextToken?.type == TokenType.PLUS ||
             tokens.nextToken?.type == TokenType.MINUS) {
@@ -35,7 +45,7 @@ class Parser(val tokens: TokenStream<Token>) {
             factor()
         }
     }
-    private fun factor(){
+    private fun factor(): Expression{
         exponent()
         while (tokens.nextToken?.type == TokenType.STAR ||
             tokens.nextToken?.type == TokenType.SLASH) {
@@ -43,7 +53,7 @@ class Parser(val tokens: TokenStream<Token>) {
             exponent()
         }
     }
-    private fun exponent(){
+    private fun exponent(): Expression{
         unary()
         if (tokens.nextToken?.type == TokenType.CARET) {        // CARET IS YUNG ^
             tokens.advance()
@@ -51,7 +61,7 @@ class Parser(val tokens: TokenStream<Token>) {
                                                                 // e.g. 2 ^ 3 ^ 2 should start sa (3^2) then 2^(8)
         }
     }
-    private fun unary(){
+    private fun unary(): Expression{
         if (tokens.nextToken?.type == TokenType.BANG ||
             tokens.nextToken?.type == TokenType.MINUS ||
             tokens.nextToken?.type == TokenType.PLUS) {
@@ -61,7 +71,7 @@ class Parser(val tokens: TokenStream<Token>) {
             primary()
         }
     }
-    private fun primary(){
+    private fun primary(): Expression{
         when (tokens.nextToken?.type) {
             TokenType.IDENTIFIER,
             TokenType.INT,
