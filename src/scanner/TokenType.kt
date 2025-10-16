@@ -1,5 +1,7 @@
 package scanner
 
+import main.Bridge
+
 // fixed master list of language's alphabet for type safety
 enum class TokenType {
     // Single-character tokens

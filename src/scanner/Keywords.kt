@@ -1,5 +1,7 @@
 package scanner
 
+import main.Bridge
+
 object Keywords{
     val keywords: Map<String, TokenType> = mapOf(
         "and" to TokenType.AND,

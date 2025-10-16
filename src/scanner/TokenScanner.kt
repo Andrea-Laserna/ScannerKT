@@ -1,5 +1,7 @@
 package scanner
 
+import main.Bridge
+
 data class TokenScanner(val source: String) {
     var current = 0 // to move until we find the end of the token
     var start = 0 // to know where the start of the token is
