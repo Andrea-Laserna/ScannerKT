@@ -71,16 +71,17 @@ class Parser(val tokens: TokenStream<Token>) {
         }
         return expr
     }
-    private fun exponent(): Expression{
-        // parse unary - higher than factor
+    private fun exponent(): Expression {
         val expr = unary()
-        if (tokens.nextToken?.type == TokenType.CARET) {        // CARET IS YUNG ^
+        if (tokens.nextToken?.type == TokenType.CARET) {
             tokens.advance()
-            val right = exponent()                              // recursion makes it right associative
-            return Expression.Binary(expr, tokens.current!!, right)                                        // recursive call here sa exponent instead sa unary makes it right-associative
+            val operation = tokens.current!! // store ^ token
+            val right = exponent()           // recursive call
+            return Expression.Binary(expr, operation, right)
         }
         return expr
     }
+
 
     private fun unary(): Expression{
         // sign

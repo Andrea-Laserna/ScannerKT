@@ -8,6 +8,6 @@ sealed class Expression {
     data class Unary(val op: Token, val right: Expression) : Expression()
     data class Group(val expr: Expression) : Expression()
     data class Identifier(val name: Token) : Expression()
-    data class Literal(val value: Any?) : Expression()
+
 
 }

@@ -59,9 +59,9 @@ object Bridge {
         // scan for tokens in the string
         val tokens: List<Token> = scanner.scanTokens()
         // print tokens for now
-        for (token in tokens) {
-            println(token)
-        }
+//        for (token in tokens) {
+//            println(token)
+//        }
 
         // Parser
         val stream = TokenStream(tokens)
@@ -71,8 +71,9 @@ object Bridge {
         // Print AST
         if (!errorExists) {
             val printer = AstPrinter()
-            println(printer.print(expression))
+            printer.printTree(expression)
         }
+        println()
     }
 
     // error handling
