@@ -1,3 +1,4 @@
+1 + 2 * 3 * (6 / 3)
 when: {
     guess == secret -> print "Correct!"
 }

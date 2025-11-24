@@ -28,6 +28,10 @@ class AstPrinter {
             is Expression.Identifier -> {
                 print(expression.name.lexeme)
             }
+            
+            is Expression.Literal -> {
+                print(expression.value?.toString() ?: "none")
+            }
         }
     }
 }

@@ -7,125 +7,158 @@ import kotlin.math.exp
 
 // ps. ga base lng ko sng algo sa LEC4 slide ni ma'am ara
 
-class Parser(val tokens: TokenStream<Token>) {
+class Parser(val tokens: TokenStream) {
 
     //entry point starting at highest level rule: equality
     fun expr(): Expression{
         return equality()
     }
-    // equality
+
+    // ===== EQUALITY =====
+
     private fun equality(): Expression{
         // parse a comparison
         var expr = comparison()
+
         while (tokens.nextToken?.type == TokenType.EQUAL_EQUAL ||
             tokens.nextToken?.type == TokenType.BANG_EQUAL){
             // when == or != is seen, parse another comparison
-            val operation = tokens.current
-            tokens.advance()
+            val operation = tokens.advance()!!
             val right = comparison()
             // write both sides in a Binary node
-            expr = Expression.Binary(expr, operation!!, right)
+            expr = Expression.Binary(expr, operation, right)
         }
         return expr
     }
 
-// --- FUNCTIONS ---
+    // ===== COMPARISON =====
+
     private fun comparison(): Expression{
         // parse higher-precedence rule first - term is higher than comparison
         var expr = term()
+
         // next token is one of its operators
         while (tokens.nextToken?.type == TokenType.GREATER ||
             tokens.nextToken?.type == TokenType.GREATER_EQUAL ||
             tokens.nextToken?.type == TokenType.LESS ||
             tokens.nextToken?.type == TokenType.LESS_EQUAL) {
-            tokens.advance()
-            val operation = tokens.current
+            val operation = tokens.advance()!!
             val right = term()
             // combine into binary expression
-            expr = Expression.Binary(expr, operation!!, right)
-        }
-        return expr
-    }
-    private fun term(): Expression{
-        // parse factor - higher than term
-        var expr = factor()
-        while (tokens.nextToken?.type == TokenType.PLUS ||
-            tokens.nextToken?.type == TokenType.MINUS) {
-            tokens.advance()
-            val operation = tokens.current
-            val right = factor()
-            expr = Expression.Binary(expr, operation!!, right)
+            expr = Expression.Binary(expr, operation, right)
         }
         return expr
     }
 
-    private fun factor(): Expression{
-        // parse exponent - higher than factor
-        var expr = exponent()
-        while (tokens.nextToken?.type == TokenType.STAR ||
-            tokens.nextToken?.type == TokenType.SLASH) {
-            tokens.advance()
-            val operation = tokens.current
-            val right = exponent()
-            expr = Expression.Binary(expr, operation!!, right)
+    // ===== TERM =====
+
+    private fun term(): Expression{
+        // parse factor - higher than term
+        var expr = factor()
+
+        while (tokens.nextToken?.type == TokenType.PLUS ||
+            tokens.nextToken?.type == TokenType.MINUS) {
+            val operation = tokens.advance()!!
+            val right = factor()
+            expr = Expression.Binary(expr, operation, right)
         }
         return expr
     }
+
+    // ===== FACTOR =====
+
+    private fun factor(): Expression{
+        // parse exponent - higher than factor
+        var expr = exponent()
+
+        while (tokens.nextToken?.type == TokenType.STAR ||
+            tokens.nextToken?.type == TokenType.SLASH) {
+            val operation = tokens.advance()!!
+            val right = exponent()
+            expr = Expression.Binary(expr, operation, right)
+        }
+        return expr
+    }
+
+    // ===== EXPONENT =====
+
     private fun exponent(): Expression {
         val expr = unary()
+
         if (tokens.nextToken?.type == TokenType.CARET) {
-            tokens.advance()
-            val operation = tokens.current!! // store ^ token
-            val right = exponent()           // recursive call
+            val operation = tokens.advance()!!
+            val right = exponent()
             return Expression.Binary(expr, operation, right)
         }
         return expr
     }
 
+    // ===== UNARY =====
 
     private fun unary(): Expression{
         // sign
         if (tokens.nextToken?.type == TokenType.BANG ||
             tokens.nextToken?.type == TokenType.MINUS ||
             tokens.nextToken?.type == TokenType.PLUS) {
-            tokens.advance()
-            val operation = tokens.current!!
+            val operation = tokens.advance()!!
             val right = unary()
             return Expression.Unary(operation, right)
-        } else {
-            // parse primary - higher than unary
-            return primary()
         }
+        return primary()
     }
+
+    // ===== PRIMARY =====
+
     private fun primary(): Expression{
         // handles leaf nodes - identifiers, literals, group expr
         return when (tokens.nextToken?.type) {
-            TokenType.IDENTIFIER,
-            TokenType.INT,
-            TokenType.FLOAT,
-            TokenType.BOOL -> {
-                tokens.advance()
-                //build here sa tree
-                Expression.Identifier(tokens.current!!)
+
+            // ===== Literals =====
+
+            TokenType.INT -> {
+                val token = tokens.advance()!!
+                Expression.Literal(token.lexeme.toInt())
             }
+
+            TokenType.FLOAT -> {
+                val token = tokens.advance()!!
+                Expression.Literal(token.lexeme.toDouble())
+            }
+
+            TokenType.BOOL -> {
+                val token = tokens.advance()!!
+                Expression.Literal(token.lexeme.toBoolean())
+            }
+
+            TokenType.STRING -> {
+                val token = tokens.advance()!!
+                Expression.Literal(token.literal)
+            }
+
+            // ===== IDENTIFIERS =====
+
+            TokenType.IDENTIFIER -> {
+                val token = tokens.advance()!!
+                Expression.Identifier(token)
+            }
+
+            // ===== GROUP =====
 
             TokenType.LEFT_PAREN -> {
                 tokens.advance()
                 // start parsing at expr
                 val expr = expr()
-                if (tokens.nextToken?.type == TokenType.RIGHT_PAREN){
+                if (tokens.nextToken?.type != TokenType.RIGHT_PAREN) {
+                    Bridge.error(1, "expected ')' after expression")
+                } else {
                     tokens.advance()
-                    return Expression.Group(expr)
                 }
-                else{
-                    Bridge.error(1, "no closing parenthesis")
-                    return Expression.Group(expr)
-                }
+                Expression.Group(expr)
             }
 
-            else -> {
-                Bridge.error(1, "no primary")                       //temporary lng to dito and line, not implemented properly yet
-                Expression.Identifier(scanner.Token(scanner.TokenType.IDENTIFIER, "error", null, 1)) // placeholder
+                else -> {
+                    Bridge.error(1, "no primary expression found")                       //temporary lng to dito and line, not implemented properly yet
+                    Expression.Literal(null)
             }
         }
     }
