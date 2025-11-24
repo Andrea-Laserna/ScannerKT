@@ -128,12 +128,13 @@ data class TokenScanner(val source: String) {
             '}' -> addToken(TokenType.RIGHT_BRACE, null)
             ',' -> addToken(TokenType.COMMA, null)
             '.' -> addToken(TokenType.DOT, null)
-            '-' -> addToken(TokenType.MINUS, null)
+            '-' -> addToken(if(nextIs('>')) TokenType.ARROW else TokenType.MINUS, null)
             '+' -> addToken(TokenType.PLUS, null)
             ';' -> addToken(TokenType.SEMICOLON, null)
             '*' -> addToken(TokenType.STAR, null)
             '^' -> addToken(TokenType.CARET, null)
             '#' -> comment()
+            ':' -> addToken(TokenType.COLON, null)
 
             //either division or comment
             '/' -> addToken(TokenType.SLASH, null)

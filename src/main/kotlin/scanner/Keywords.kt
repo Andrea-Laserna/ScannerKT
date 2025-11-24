@@ -4,6 +4,13 @@ import main.Bridge
 
 object Keywords{
     val keywords: Map<String, TokenType> = mapOf(
+        "import" to TokenType.IMPORT,
+        "when" to TokenType.WHEN,
+        "loop" to TokenType.LOOP,
+        "try" to TokenType.TRY,
+        "catch" to TokenType.CATCH,
+        "ask" to TokenType.ASK,
+        "to" to TokenType.TO,
         "and" to TokenType.AND,
         "class" to TokenType.CLASS,
         "else" to TokenType.ELSE,
@@ -15,10 +22,12 @@ object Keywords{
         "print" to TokenType.PRINT,
         "return" to TokenType.RETURN,
         "super" to TokenType.SUPER,
-        "this" to TokenType.THIS,
         "true" to TokenType.TRUE,
         "var" to TokenType.VAR,
         "not" to TokenType.NOT,
-        "while" to TokenType.WHILE
+        "string" to TokenType.STRING,
+        "float" to TokenType.FLOAT,
+        "int" to TokenType.INT,
+        "bool" to TokenType.BOOL
     )
 }
