@@ -68,14 +68,32 @@ class Parser(val tokens: TokenStream) {
     // ===== FACTOR =====
 
     private fun factor(): Expression{
-        // parse exponent - higher than factor
         var expr = exponent()
 
-        while (tokens.nextToken?.type == TokenType.STAR ||
-            tokens.nextToken?.type == TokenType.SLASH) {
-            val operation = tokens.advance()!!
-            val right = exponent()
-            expr = Expression.Binary(expr, operation, right)
+        while (true) {
+            val nextType = tokens.nextToken?.type
+
+            if (nextType == TokenType.STAR || nextType == TokenType.SLASH) {
+                // Case 1: Explicit multiplication or division
+                val operation = tokens.advance()!!
+                val right = exponent()
+                expr = Expression.Binary(expr, operation, right)
+            
+            } else if (nextType == TokenType.LEFT_PAREN || nextType == TokenType.IDENTIFIER || nextType == TokenType.INT || nextType == TokenType.FLOAT) {
+                // Case 2: Implicit Multiplication is detected (e.g., 2(3-1) or 2a)
+                
+                // To make it error, we will throw a specific Parse Error here.
+                val errorToken = tokens.nextToken!!
+                Bridge.error(errorToken.line, "Expected '*' or '/' before '${errorToken.lexeme}' for multiplication.")
+                
+                // We should synchronize the parser to the next statement or semi-colon 
+                // to allow compilation to continue, but for now, just throw and exit.
+                throw RuntimeException("Parse Error: Implicit multiplication not allowed.") 
+
+            } else {
+                // Case 3: End of factor-level expression
+                break
+            }
         }
         return expr
     }
