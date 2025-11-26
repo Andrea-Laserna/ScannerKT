@@ -1,6 +1,50 @@
 package parser
 
 class AstPrinter {
+    // New public function to start printing from a Statement node
+    fun printStatement(statement: Statement) {
+        when (statement) {
+            is Statement.Print -> {
+                print("(print ")
+                printTree(statement.expression)
+                print(")")
+            }
+            is Statement.ExpressionStatement -> {
+                print("(expr-stmt ")
+                printTree(statement.expression)
+                print(")")
+            }
+            is Statement.Var -> {
+                print("(var ${statement.name.lexeme} ")
+                if (statement.initializer != null) {
+                    printTree(statement.initializer)
+                } else {
+                    print("none")
+                }
+                print(")")
+            }
+            is Statement.Ask -> {
+                print("(ask ${statement.name.lexeme} ")
+                printTree(statement.prompt)
+                print(")")
+            }
+            is Statement.Assignment -> {
+                print("(= ${statement.name.lexeme} ")
+                printTree(statement.value)
+                print(")")
+            }
+            is Statement.Block -> {
+                print("{") // Open the block
+                // Recursively print all statements inside the block
+                statement.statements.forEach { s ->
+                    printStatement(s)
+                }
+                print("}") // Close the block
+            }
+        }
+    }
+    
+    // Existing function to print Expression nodes (renamed/modified to be private/internal if possible)
     fun printTree(expression: Expression) {
         when (expression) {
             is Expression.Binary -> {
@@ -30,7 +74,13 @@ class AstPrinter {
             }
             
             is Expression.Literal -> {
-                print(expression.value?.toString() ?: "none")
+                val value = expression.value
+                // FIX: Check if the literal is a String and wrap it in quotes.
+                if (value is String) {
+                    print("\"$value\"")
+                } else {
+                    print(value?.toString() ?: "none")
+                }
             }
         }
     }

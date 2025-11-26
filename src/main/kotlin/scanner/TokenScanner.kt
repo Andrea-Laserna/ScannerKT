@@ -51,19 +51,42 @@ data class TokenScanner(val source: String) {
     }
 
     private fun comment() {
+        // Multi-line comment (##[ ... ##])
         if(nextIs('#')) {
-            while (showCurrent() != '#' && showNext()== '#' && !isAtEnd()) {
+            // Check for [ to confirm start of multi-line block
+            if (nextIs('[')) {
+                // Keep consuming until we find the closing ##]
+                while (current + 2 < source.length && !(source[current] == '#' && source[current+1] == '#' && source[current+2] == ']')) {
+                    if (showCurrent() == '\n') line++
+                    advance()
+                }
+
+                if (current + 2 >= source.length) {
+                    Bridge.error(line, "Unterminated multi-line comment. Expected '##]'.")
+                    return
+                }
+
+                // Consume the closing ##]
                 advance()
                 advance()
                 advance()
+            } else {
+                // Single line comment (## or #) is treated as a regular single line comment
+                while(!isAtEnd() && showCurrent() != '\n'){
+                    advance()
+                }
             }
+
         }else{
+            // Single line comment (#)
             while(!isAtEnd() && showCurrent() != '\n'){
                 advance()
             }
         }
 
-        val comment = source.substring(start+1, current) // start after #
+        // For tokenization purposes, we treat the entire comment as a single token.
+        // However, comments are usually discarded immediately after scanning.
+        val comment = source.substring(start, current) // Include delimiters for full representation
         addToken(TokenType.COMMENT, comment)
     }
 
@@ -72,7 +95,7 @@ data class TokenScanner(val source: String) {
     }
 
     private fun showNext(): Char {
-        return if(current + 1 > source.length) '\u0000' else source[current + 1]
+        return if(current + 1 >= source.length) '\u0000' else source[current + 1]
     }
 
     // barebones lng ni muna nang, sa next gru pwede pa malagyan ng look ahead
@@ -131,20 +154,22 @@ data class TokenScanner(val source: String) {
             '-' -> addToken(if(nextIs('>')) TokenType.ARROW else TokenType.MINUS, null)
             '+' -> addToken(TokenType.PLUS, null)
             ';' -> addToken(TokenType.SEMICOLON, null)
-            '*' -> addToken(TokenType.STAR, null)
-            '^' -> addToken(TokenType.CARET, null)
+            '^' -> addToken(TokenType.CARET, null) // Using ^ for Exponentiation
             '#' -> comment()
             ':' -> addToken(TokenType.COLON, null)
 
-            //either division or comment
+            // either division or comment or multi-line comment close
             '/' -> addToken(TokenType.SLASH, null)
+
+            // Multiplication (*)
+            '*' -> addToken(TokenType.STAR, null)
 
             // insert operators
             '!' -> addToken(if(nextIs('=')) TokenType.BANG_EQUAL else TokenType.BANG, null)
             '=' -> addToken(if(nextIs('=')) TokenType.EQUAL_EQUAL else TokenType.EQUAL, null)
             '<' -> addToken(if(nextIs('=')) TokenType.LESS_EQUAL else TokenType.LESS, null)
             '>' -> addToken(if(nextIs('=')) TokenType.GREATER_EQUAL else TokenType.GREATER, null)
-
+            
             // insert longer lexemes: division, new lines, white space
             ' ', '\r', '\t' -> { /* padayun lang */ }
             '\n' -> line++

@@ -15,10 +15,10 @@ import parser.Parser
 import parser.TokenStream
 import parser.AstPrinter
 import parser.Expression
+import parser.Statement // Import Statement sealed class
 import kotlin.system.exitProcess
 import java.io.File
 import java.io.InputStream
-
 
 
 // entry point
@@ -42,17 +42,15 @@ object Bridge {
     // read code from another file
     private fun runFile(path: String) {
         val inputStream: InputStream = File(path).inputStream() // open the file for reading: create a file object and open it as a stream of bytes
-        val inputString = inputStream.reader().use {it.readText()} // reader() to wrap byte stream for reading, adding .use to close stream after use, it.readText() for read file as a single string
+        val inputString = inputStream.reader().readText()
         run(inputString)
-        // kill the file
         if (errorExists) exitProcess(65)
     }
 
-    // read code from terminal
+    // REPL
     private fun runPrompt() {
-        while(true){
-            print(">")
-            // if enter, set line to the string. if ctrl D or C EOF, exit
+        while (true) {
+            print(">") // print the string. if ctrl D or C EOF, exit
             val line = readLine() ?: break
             run(line)
             // dont kill the REPL
@@ -73,12 +71,18 @@ object Bridge {
         // Parser
         val stream = TokenStream(tokens)
         val parser = Parser(stream)
-        val expression = parser.expr()
+        
+        // Correctly parse a list of statements
+        val statements = parser.parse()
 
         // Print AST
         if (!errorExists) {
             val printer = AstPrinter()
-            printer.printTree(expression)
+            
+            // >>> CRITICAL FIX: Iterate over statements and print them <<<
+            for (statement in statements) {
+                printer.printStatement(statement)
+            }
         }
         println()
     }
@@ -99,14 +103,3 @@ object Bridge {
 fun main(args: Array<String>) {
     Bridge.start(args)
 }
-
-
-
-//future TODOs
-// kulang ng naghahandle ng \ and '
-// ang ang lexeme ng EOF is ang lexeme ng prev toker.
-// hindi nag eerror if walang closing parenthesis
-// siguro yung rules para sa syntax ng functions?
-// ano pa ba yun plng naisip ko
-
-// data types
