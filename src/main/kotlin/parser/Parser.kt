@@ -234,7 +234,7 @@ class Parser(val tokens: TokenStream) {
         return when (nextType) {
 
             // ===== Literals =====
-            TokenType.TRUE, TokenType.FALSE -> {
+            TokenType.TRUE, TokenType.FALSE, TokenType.NIL -> {
                 val token = tokens.advance()!!
                 Expression.Literal(token.literal)
             }
@@ -294,5 +294,6 @@ class Parser(val tokens: TokenStream) {
         Bridge.error(line, message)
     }
 
-    private class ParseError : RuntimeException()
+    // private class ParseError : RuntimeException()
+    class ParseError : RuntimeException()
 }

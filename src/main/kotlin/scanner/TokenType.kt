@@ -23,7 +23,7 @@ enum class TokenType {
     ARROW, // ->
 
     // Literals & Identifiers
-    IDENTIFIER, COMMENT, STRING, INT, FLOAT, // Consolidated types for literal values
+    IDENTIFIER, COMMENT, STRING, INT, FLOAT, NIL, // Consolidated types for literal values
     
     // Built-in Values
     TRUE, FALSE, 

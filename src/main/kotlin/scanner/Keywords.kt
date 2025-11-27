@@ -28,6 +28,7 @@ object Keywords{
         "string" to TokenType.STRING,
         "float" to TokenType.FLOAT,
         "int" to TokenType.INT,
-        "bool" to TokenType.BOOL
+        "bool" to TokenType.BOOL,
+        "nil" to TokenType.NIL,
     )
 }

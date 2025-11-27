@@ -19,7 +19,9 @@ import parser.Statement // Import Statement sealed class
 import kotlin.system.exitProcess
 import java.io.File
 import java.io.InputStream
-
+import interpreter.Interpreter
+import interpreter.RuntimeError
+import parser.Parser.ParseError
 
 // entry point
 object Bridge {
@@ -58,35 +60,63 @@ object Bridge {
         }
     }
 
+    // private fun run(source: String) {
+    //     // Scanner
+    //     val scanner = TokenScanner(source)
+    //     // scan for tokens in the string
+    //     val tokens: List<Token> = scanner.scanTokens()
+    //     // print tokens for now
+    //     // for (token in tokens) {
+    //     //     println(token)
+    //     // }
+
+    //     // Parser
+    //     val stream = TokenStream(tokens)
+    //     val parser = Parser(stream)
+        
+    //     // Correctly parse a list of statements
+    //     val statements = parser.parse()
+
+    //     // Print AST
+    //     if (!errorExists) {
+    //         val printer = AstPrinter()
+            
+    //         // >>> CRITICAL FIX: Iterate over statements and print them <<<
+    //         for (statement in statements) {
+    //             printer.printStatement(statement)
+    //         }
+    //     }
+    //     println()
+    // }
+
     private fun run(source: String) {
         // Scanner
         val scanner = TokenScanner(source)
         // scan for tokens in the string
-        val tokens: List<Token> = scanner.scanTokens()
-        // print tokens for now
-        // for (token in tokens) {
-        //     println(token)
-        // }
+        // The previous error was here. Ensure all imports are correct.
+        val tokens: List<Token> = scanner.scanTokens() // Line 94 in the error log
 
         // Parser
         val stream = TokenStream(tokens)
         val parser = Parser(stream)
         
-        // Correctly parse a list of statements
-        val statements = parser.parse()
-
-        // Print AST
-        if (!errorExists) {
-            val printer = AstPrinter()
-            
-            // >>> CRITICAL FIX: Iterate over statements and print them <<<
-            for (statement in statements) {
-                printer.printStatement(statement)
-            }
+        // --- NEW INTERPRETATION LOGIC ---
+        
+        // This attempts to parse a single expression, catching ParseError.
+        val expression: Expression? = try {
+            parser.expr()
+        } catch (e: ParseError) { // <--- ENSURE ParseError IS NOW VISIBLE
+            // Error already reported by Bridge.error() inside parser
+            null
         }
-        println()
-    }
 
+        // Interpreter/Evaluation
+        if (!errorExists && expression != null) {
+            val interpreter = Interpreter()
+            interpreter.interpret(expression)
+        }
+    }
+    
     // error handling
     // shortcut for most errors
     fun error (line: Int, message: String) {
@@ -96,6 +126,12 @@ object Bridge {
     // engine for errors
     private fun report (line: Int, where: String, message: String) {
         System.err.println("[line $line] Error at $where: $message")
+        errorExists = true
+    }
+
+    // NEW: Add a specific function to report runtime errors
+    fun runtimeError(error: RuntimeError) {
+        System.err.println("[line ${error.token.line}] Runtime error: ${error.message}")
         errorExists = true
     }
 }
