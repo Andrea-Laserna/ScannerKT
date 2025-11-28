@@ -1,6 +1,7 @@
 package scanner
 
 import main.Bridge
+import scanner.TokenType 
 
 object Keywords{
     val keywords: Map<String, TokenType> = mapOf(
@@ -29,6 +30,6 @@ object Keywords{
         "float" to TokenType.FLOAT,
         "int" to TokenType.INT,
         "bool" to TokenType.BOOL,
-        "nil" to TokenType.NIL,
+        "nil" to TokenType.NIL
     )
 }
