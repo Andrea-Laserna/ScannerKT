@@ -1,5 +1,20 @@
-1 + 2 * 3 * (6 / 3);
+# A simple program demonstrating variables and scope
+var greeting = "Hello";
+var name = "World";
+
+print greeting + ", " + name + "!";
+
+var x = 10;
+var y = 20;
+
 {
-    print "Correct!";
-    var z = 10;
+    var x = 5;  # shadows outer x
+    print "Inner x: " + x;
+    print "Outer y: " + y;
 }
+
+print "Outer x: " + x;
+
+# Reassignment
+x = x + y;
+print "x + y = " + x;

@@ -5,181 +5,155 @@ import scanner.Token
 import scanner.TokenType
 import kotlin.math.exp
 
-class Parser(val tokens: TokenStream) {
+// ps. ga base lng ko sng algo sa LEC4 slide ni ma'am ara
 
-    // Main entry point for the parser to convert the list of tokens into the Abstract Syntax Tree AST
+class Parser(val tokens: TokenStream) {
+    // ... (rest of the file remains the same until declaration())
+
+    // --- Statement Parsing ---
+
     fun parse(): List<Statement> {
         val statements = mutableListOf<Statement>()
-        // TODO: Handle try-catch for errors here to allow parsing to continue
-        
-        // Run as long as there are tokens to process
         while (tokens.nextToken?.type != TokenType.EOF) {
-            // Function to parse the next complete unit of code like print, var, ask
-            // Once statement() successfully consumes all tokens, return Statement obj
-            statements.add(statement())
+            statements.add(declaration())
         }
-        // List of statement objects
         return statements
     }
 
-    // Handle blocks
-    private fun block(): Statement.Block {
-        val statements = mutableListOf<Statement>()
-
-        // Keep parsing statements until we hit the closing brace '}' or EOF
-        while (tokens.nextToken?.type != TokenType.RIGHT_BRACE && tokens.nextToken?.type != TokenType.EOF) {
-            statements.add(statement()) // Recursively parse the statements inside the block
-        }
-
-        consume(TokenType.RIGHT_BRACE, "Expected '}' after block.")
-        return Statement.Block(statements)
-    }
-    // Handles any type of statement (declaration, print, loop, etc.)
-    private fun statement(): Statement {
-        // NEW CHECK: If we see '{', parse a block
-        if (match(TokenType.LEFT_BRACE)) return block()
-        
-        // If we see 'print', parse a print statement
-        if (match(TokenType.PRINT)) return printStatement()
-        
-        // FIX: Only check for VAR here.
-        // NOTE: Type-based declarations (INT, STRING, etc.) are temporarily disabled 
-        // to prevent ambiguity with literal tokens (TokenType.INT, TokenType.STRING). 
-        // This will be fixed properly later by separating literal types (e.g., INT_LITERAL)
-        // from type keywords (INT).
-        if (match(TokenType.VAR)) {
-            return declaration()
-        }
-
-        // If we see 'ask', parse an input statement
-        if (match(TokenType.ASK)) return askStatement()
-
-        // Default: Treat it as a standard expression followed by a semicolon
-        return expressionStatement()
-    }
-
-    // ===== STATEMENTS =====
-
     private fun declaration(): Statement {
-        // Assume type/var token has already been consumed by match in statement()
-        // The current token holds the keyword (VAR, INT, etc.) that triggered the match.
-        val type = tokens.current!! 
+        try {
+            // NEW: Skip any leading COMMENT tokens before trying to parse a statement.
+            while (match(TokenType.COMMENT)) { /* skip */ }
 
-        // Handle multiple identifiers: a, b, c (Simplified for now, only parses first)
-        val names = mutableListOf<Token>()
-        // First name is mandatory
-        // Verifies that the next token is a variable name and consumes it
-        var name = consume(TokenType.IDENTIFIER, "Expected identifier after type or 'var'.")
-        names.add(name)
-        // Multiple names chaining
-        while (match(TokenType.COMMA)) {
-            name = consume(TokenType.IDENTIFIER, "Expected identifier after ','.")
-            names.add(name)
+            if (match(TokenType.VAR)) return varDeclaration()
+            // NEW: Add parsing for the 'ask' keyword
+            if (match(TokenType.ASK)) return askStatement() 
+            return statement()
+        } catch (error: ParseError) {
+            synchronize()
+            // FIXED: Use the fully qualified name Statement.ExpressionStatement
+            return Statement.ExpressionStatement(Expression.Literal(null)) // Return a dummy statement to continue parsing
         }
-
-        // Var statements are optional: You can declare a variable without giving it a starting value
-        var initializer: Expression? = null
-
-        // Check for initializer (e.g., = 10)
-        if (match(TokenType.EQUAL)) {
-            // Assignment expression starts from logical_or
-            initializer = logical_or() 
-        }
-
-        // Termination Consistency Rule: All top-level statements require a semicolon
-        consume(TokenType.SEMICOLON, "Expected ';' after variable declaration.")
+    }
+    
+    private fun varDeclaration(): Statement {
+        val name = consume(TokenType.IDENTIFIER, "Expect variable name.")
         
-        // Returning the first declared variable for now (as the AST supports single Var declaration)
-        // TODO: Multi-declaration syntax is partially supported for now but not fully utilized in the AST structure yet
-        return Statement.Var(names.first(), initializer)
+        var initializer: Expression? = null
+        if (match(TokenType.EQUAL)) {
+            initializer = expr() // Parse the initializer expression
+        }
+        
+        consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
+        return Statement.Var(name, initializer)
     }
 
-    private fun printStatement(): Statement.Print {
-        // print keyword already consumed
-        val value = logical_or() // Expression to be printed
-        consume(TokenType.SEMICOLON, "Expected ';' after 'print' value.")
-        return Statement.Print(value)
-    }
-
-    private fun askStatement(): Statement.Ask {
-        // ask keyword already consumed
-        val name = consume(TokenType.IDENTIFIER, "Expected identifier for input storage.")
-        val prompt = logical_or() // The prompt expression (usually a string literal)
-        consume(TokenType.SEMICOLON, "Expected ';' after 'ask' statement.")
+    private fun askStatement(): Statement {
+        val name = consume(TokenType.IDENTIFIER, "Expect variable name after 'ask'.")
+        val prompt = expr() // The prompt must be an expression (usually a string literal)
+        consume(TokenType.SEMICOLON, "Expect ';' after 'ask' statement.")
         return Statement.Ask(name, prompt)
     }
 
-    private fun expressionStatement(): Statement.ExpressionStatement {
-        val expr = logical_or() // Parse the expression
-        // expression is followed by a semicolon
-        consume(TokenType.SEMICOLON, "Expected ';' after expression statement.")
-        return Statement.ExpressionStatement(expr)
+    private fun statement(): Statement {
+        if (match(TokenType.PRINT)) {
+            return printStatement()
+        }
+        if (match(TokenType.LEFT_BRACE)) {
+            return Statement.Block(block())
+        }
+        return expressionStatement()
+    }   
+    
+    private fun printStatement(): Statement {
+        val value = expr()
+        consume(TokenType.SEMICOLON, "Expect ';' after value.")
+        return Statement.Print(value)
     }
 
-    // ===== EXPRESSIONS (Precedence Rules) =====
+    private fun expressionStatement(): Statement {
+        val expression = expr()
+        consume(TokenType.SEMICOLON, "Expect ';' after expression.")
+        return Statement.ExpressionStatement(expression)
+    }
 
-    // entry point starting at highest level rule: logical_or (lowest precedence)
+    private fun block(): List<Statement> {
+        val statements = mutableListOf<Statement>()
+
+        // Recursively skip comments inside the block before parsing declarations
+        while (tokens.nextToken?.type != TokenType.RIGHT_BRACE && tokens.nextToken?.type != TokenType.EOF) {
+            statements.add(declaration())
+        }
+
+        consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
+        return statements
+    }
+
+
+    // --- Expression Logic Updates: Assignment ---
+
+    // Entry point now calls assignment()
     fun expr(): Expression{
-        return logical_or()
+        return assignment()
     }
-    
-    // ===== LOGICAL OR (Level 1: or) =====
-    
-    private fun logical_or(): Expression {
-        var expr = logical_and()
 
-        while (match(TokenType.OR)) {
-            val operation = tokens.current!!
-            val right = logical_and()
-            expr = Expression.Binary(expr, operation, right)
+    /**
+     * assignment -> IDENTIFIER "=" assignment | equality ;
+     * Assignment is right-associative and is the highest-precedence expression type.
+     */
+    private fun assignment(): Expression {
+        // Parse the next lower-precedence level (equality)
+        val expr = equality() 
+
+        // Check if we have an assignment operator
+        if (match(TokenType.EQUAL)) {
+            val equals = tokens.current!! 
+            
+            // The right-hand side is also an assignment (right-associativity: a = b = c)
+            val value = assignment() 
+
+            // Check if the left-hand side is a valid assignment target (must be an identifier)
+            if (expr is Expression.Identifier) {
+                val name = expr.name // The token for the identifier
+                return Expression.Assignment(name, value)
+            } 
+            
+            // If it's not an identifier (e.g., (a + b) = 5), report an error
+            Bridge.error(equals.line, "Invalid assignment target.")
         }
+
+        // If no '=' was found, return the equality expression parsed earlier
         return expr
     }
 
-    // ===== LOGICAL AND (Level 2: and) =====
-    
-    private fun logical_and(): Expression {
-        var expr = equality()
-
-        while (match(TokenType.AND)) {
-            val operation = tokens.current!!
-            val right = equality()
-            expr = Expression.Binary(expr, operation, right)
-        }
-        return expr
-    }
-    
-    // ===== EQUALITY (Level 3: ==, !=) =====
-
+    // ===== EQUALITY (Existing, no change needed) =====
     private fun equality(): Expression{
         var expr = comparison()
-
-        while (match(TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL)){
-            val operation = tokens.current!! 
+        while (tokens.nextToken?.type == TokenType.EQUAL_EQUAL ||
+            tokens.nextToken?.type == TokenType.BANG_EQUAL){
+            val operation = tokens.advance()!!
             val right = comparison()
             expr = Expression.Binary(expr, operation, right)
         }
         return expr
     }
 
-    // ===== COMPARISON (Level 4: <, <=, >, >=) =====
-
+    // ===== COMPARISON, TERM, FACTOR, EXPONENT, UNARY, PRIMARY (Unchanged logic) =====
     private fun comparison(): Expression{
         var expr = term()
-
-        while (match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
-            val operation = tokens.current!!
+        while (tokens.nextToken?.type == TokenType.GREATER ||
+            tokens.nextToken?.type == TokenType.GREATER_EQUAL ||
+            tokens.nextToken?.type == TokenType.LESS ||
+            tokens.nextToken?.type == TokenType.LESS_EQUAL) {
+            val operation = tokens.advance()!!
             val right = term()
             expr = Expression.Binary(expr, operation, right)
         }
         return expr
     }
 
-    // ===== TERM (Level 5: Addition/Subtraction) =====
-
-    private fun term(): Expression{
+    private fun term(): Expression {
         var expr = factor()
-
         while (match(TokenType.PLUS, TokenType.MINUS)) {
             val operation = tokens.current!!
             val right = factor()
@@ -188,11 +162,8 @@ class Parser(val tokens: TokenStream) {
         return expr
     }
 
-    // ===== FACTOR (Level 6: Multiplication/Division) =====
-
-    private fun factor(): Expression{
+    private fun factor(): Expression {
         var expr = exponent()
-
         while (match(TokenType.STAR, TokenType.SLASH)) {
             val operation = tokens.current!!
             val right = exponent()
@@ -201,75 +172,70 @@ class Parser(val tokens: TokenStream) {
         return expr
     }
 
-    // ===== EXPONENT (Level 7: ^) =====
-
     private fun exponent(): Expression {
         var expr = unary()
-
-        // *** FIX: Checking for CARET (^) as requested ***
         if (match(TokenType.CARET)) {
             val operation = tokens.current!!
-            // Right recursion: Exponentiations are right-associative
             val right = exponent() 
-            return Expression.Binary(expr, operation, right)
+            expr = Expression.Binary(expr, operation, right)
         }
         return expr
     }
 
-    // ===== UNARY (Level 8: -, +, !) =====
-
-    private fun unary(): Expression{
-        if (match(TokenType.BANG, TokenType.MINUS, TokenType.PLUS)) {
-            val operation = tokens.current!!
+    private fun unary(): Expression {
+        if (match(TokenType.MINUS, TokenType.PLUS, TokenType.BANG)) {
+            val op = tokens.current!!
             val right = unary()
-            return Expression.Unary(operation, right)
+            return Expression.Unary(op, right)
         }
         return primary()
     }
 
-    // ===== PRIMARY (Level 9: Leaf Nodes) =====
-
     private fun primary(): Expression{
-        val nextType = tokens.nextToken?.type
-        return when (nextType) {
-
-            // ===== Literals =====
-            TokenType.TRUE, TokenType.FALSE, TokenType.NIL -> {
+        return when (tokens.nextToken?.type) {
+            TokenType.FALSE -> { tokens.advance()!!; Expression.Literal(false) }
+            TokenType.TRUE -> { tokens.advance()!!; Expression.Literal(true) }
+            TokenType.NIL -> { tokens.advance()!!; Expression.Literal(null) }
+            
+            // FIXED: Use TokenType.INT and TokenType.FLOAT instead of the missing TokenType.NUMBER
+            TokenType.INT, TokenType.FLOAT -> { 
                 val token = tokens.advance()!!
-                Expression.Literal(token.literal)
+                // Use the literal property which should hold the parsed number value (as Double)
+                val value = token.literal as? Double ?: token.lexeme.toDouble()
+                Expression.Literal(value) 
             }
-            TokenType.INT, TokenType.FLOAT, TokenType.STRING -> {
+            
+            TokenType.BOOL -> { 
+                val token = tokens.advance()!!
+                Expression.Literal(token.lexeme.toBoolean()) 
+            }
+            TokenType.STRING -> { 
                 val token = tokens.advance()!!
                 Expression.Literal(token.literal) 
             }
-
-            // ===== IDENTIFIERS =====
-            TokenType.IDENTIFIER -> {
+            TokenType.IDENTIFIER -> { 
                 val token = tokens.advance()!!
-                Expression.Identifier(token)
+                Expression.Identifier(token) 
             }
-
-            // ===== GROUP =====
             TokenType.LEFT_PAREN -> {
-                tokens.advance() // Consume '('
-                val expr = logical_or() // Use the highest precedence expression rule
-                consume(TokenType.RIGHT_PAREN, "Expected ')' after expression.")
+                tokens.advance()
+                val expr = expr()
+                if (tokens.nextToken?.type != TokenType.RIGHT_PAREN) {
+                    Bridge.error(1, "expected ')' after expression")
+                } else {
+                    tokens.advance()
+                }
                 Expression.Group(expr)
             }
-
             else -> {
-                val token = tokens.nextToken // Use the next token for error context
-                error(token?.line ?: 0, "Expected expression (literal, identifier, or '('), but found '${token?.lexeme ?: "EOF"}'")                       
-                // Synchronization: Advance past the offending token to try and resume parsing.
-                tokens.advance() 
-                throw ParseError() 
+                val token = tokens.nextToken ?: tokens.current 
+                throw error(token ?: Token(TokenType.EOF, "", null, 1), "Expect expression.")
             }
         }
     }
 
-    // ===== UTILITY FUNCTIONS =====
 
-    // Attempts to advance and check the type, returning true if it matches one of the provided types.
+    // --- Utility Methods (Unchanged) ---
     private fun match(vararg types: TokenType): Boolean {
         for (type in types) {
             if (tokens.nextToken?.type == type) {
@@ -279,21 +245,30 @@ class Parser(val tokens: TokenStream) {
         }
         return false
     }
-    
-    // Checks if the next token is of the expected type, consumes it, and returns it.
+
     private fun consume(type: TokenType, message: String): Token {
         if (tokens.nextToken?.type == type) {
             return tokens.advance()!!
         }
-        val errorToken = tokens.nextToken ?: Token(TokenType.EOF, "", null, 0)
-        error(errorToken.line, message)
-        throw ParseError() // Stop the current rule parsing on error
+        throw error(tokens.nextToken!!, message) 
     }
 
-    private fun error(line: Int, message: String) {
-        Bridge.error(line, message)
+    private fun error(token: Token, message: String): ParseError {
+        Bridge.error(token.line, " at '${token.lexeme}': $message")
+        return ParseError()
     }
 
-    // private class ParseError : RuntimeException()
-    class ParseError : RuntimeException()
+    class ParseError : RuntimeException() 
+
+    private fun synchronize() {
+        tokens.advance() 
+        while (tokens.nextToken?.type != TokenType.EOF) {
+            if (tokens.current?.type == TokenType.SEMICOLON) return
+            when (tokens.nextToken?.type) {
+                TokenType.CLASS, TokenType.FUN, TokenType.VAR, TokenType.FOR, TokenType.IF, 
+                TokenType.WHILE, TokenType.PRINT, TokenType.RETURN, TokenType.ASK -> return // Added ASK
+                else -> tokens.advance()
+            }
+        }
+    }
 }

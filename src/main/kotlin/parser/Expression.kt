@@ -40,4 +40,8 @@ sealed class Expression {
     data class Literal(val value: Any?) : Expression() {
         override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitLiteralExpression(this)
     }
+    
+    data class Assignment(val name: Token, val value: Expression) : Expression() {
+        override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitAssignmentExpression(this)
+    }
 }

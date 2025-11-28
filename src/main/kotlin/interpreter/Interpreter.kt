@@ -1,59 +1,146 @@
 package interpreter
 
-import main.Bridge
-import parser.Expression
+import parser.*
 import scanner.Token
-import scanner.TokenType
+import main.Bridge
 import kotlin.math.pow
 
-// Custom exception for runtime errors (used to unwind the stack)
-class RuntimeError(val token: Token, message: String) : RuntimeException(message)
+/**
+ * The main execution engine for the language.
+ * Implements both ExpressionVisitor and StatementVisitor to execute the AST nodes.
+ *
+ * It uses the Environment class to manage variable storage and scopes.
+ */
+class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
+    // Global scope environment: The root of the scope chain.
+    private val globals = Environment()
+    // Current environment reference: Points to the environment currently in use.
+    private var environment = globals
 
-// Interpreter implements that ExpressionVisitor interface from Visitor.kt
-class Interpreter : ExpressionVisitor<Any?> {
+    // --- Entry Point ---
 
-    // --- Core Interpreter Entry Point (used by Bridge.kt) ---
-    fun interpret(expression: Expression) {
+    /**
+     * Entry point for interpreting a full list of statements (a script).
+     */
+    fun interpret(statements: List<Statement>) {
         try {
-            val value = evaluate(expression)
-            println(stringify(value))
+            // Optional: Set up the global environment (e.g., native functions) if necessary
+            
+            for (statement in statements) {
+                execute(statement)
+            }
         } catch (error: RuntimeError) {
+            // Catches runtime errors and reports them using the Bridge
             Bridge.runtimeError(error)
         }
     }
 
-    // expr holds the AST node (e.g. Expression.Binary) to be evaluated with a type sealed class Expression
+    private fun execute(stmt: Statement) {
+        stmt.accept(this)
+    }
+
     private fun evaluate(expr: Expression): Any? {
         return expr.accept(this)
     }
+    
+    // --- Statement Visitor Implementations ---
+    
+    override fun visitExpressionStatement(stmt: Statement.ExpressionStatement) {
+        // Execute the expression, discarding the result (e.g., '1 + 1;')
+        evaluate(stmt.expression)
+    }
+
+    override fun visitPrintStatement(stmt: Statement.Print) {
+        val value = evaluate(stmt.expression)
+        println(stringify(value))
+    }
+
+    // Variable Declaration Logic (var x = value;)
+    override fun visitVarStatement(stmt: Statement.Var) {
+        // Default value for variables
+        var value: Any? = null
+        // If user provided an assignent expression (=)
+        if (stmt.initializer != null) {
+            // Evaluate initial value
+            value = evaluate(stmt.initializer)
+        }
+        // Define the variable (name value pair) in the current scope
+        environment.define(stmt.name.lexeme, value)
+    }
+
+    // Block Scope Logic ({ statements })
+    override fun visitBlockStatement(stmt: Statement.Block) {
+        // Create a new scope (environment) linked to the current one
+        executeBlock(stmt.statements, Environment(environment))
+    }
+    
+    // Ask Statement Logic (ask x "prompt";)
+    override fun visitAskStatement(stmt: Statement.Ask) {
+        // Evaluate the prompt expression (which should be a string literal)
+        val prompt = stringify(evaluate(stmt.prompt))
+        
+        // Note: For a true console app, you would use readLine(). 
+        // Here, we simulate the action and define the variable as null 
+        // or a placeholder until input is handled externally.
+        println("--- ASK: $prompt (Storing result in: ${stmt.name.lexeme}) ---")
+        environment.define(stmt.name.lexeme, null) // Initialize the variable in the environment
+    }
+    
+    /**
+     * Executes a list of statements within a new, temporary environment (scope).
+     */
+    fun executeBlock(statements: List<Statement>, environment: Environment) {
+        // Save the current environment reference
+        val previous = this.environment 
+        try {
+            // Switch to the new environment for execution (entering the scope)
+            this.environment = environment
+            
+            for (statement in statements) {
+                execute(statement)
+            }
+        } finally {
+            // Restore the previous environment when the block finishes (even if an error occurs)
+            this.environment = previous // Exiting the scope
+        }
+    }
+
 
     // --- Expression Visitor Implementations ---
 
+    // Variable Assignment Logic (x = value)
+    override fun visitAssignmentExpression(expr: Expression.Assignment): Any? {
+        val value = evaluate(expr.value)
+        // Update the variable value in its defining scope (using assign to search up the chain)
+        environment.assign(expr.name, value)
+        return value
+    }
+    
+    // Variable Lookup Logic (x)
+    override fun visitIdentifierExpression(expr: Expression.Identifier): Any? {
+        // Retrieve the variable value from the current or enclosing environments
+        return environment.get(expr.name)
+    }
+
     override fun visitLiteralExpression(expr: Expression.Literal): Any? {
+        // Return the raw value (e.g., 5.0, "hello", true, nil)
         return expr.value
     }
 
     override fun visitGroupExpression(expr: Expression.Group): Any? {
+        // Evaluate the expression inside the parentheses
         return evaluate(expr.expr)
     }
 
     override fun visitUnaryExpression(expr: Expression.Unary): Any? {
         val right = evaluate(expr.right)
-
-        return when (expr.op.type) {
-            TokenType.MINUS -> {
-                checkNumberOperand(expr.op, right)
-                -(right as Number).toDouble()
-            }
-            // Assume '!' is for logical NOT
-            TokenType.BANG -> !isTruthy(right)
-            
-            // Assume '+' is identity operator for numbers
-            TokenType.PLUS -> {
-                checkNumberOperand(expr.op, right)
-                right
-            }
-            else -> null // Should not happen
+        
+        return when (expr.op.lexeme) {
+            // Unary Minus: Negation, requires a number
+            "-" -> checkNumberOperand(expr.op, right)?.let { -it }
+            // Logical NOT: Reverses truthiness
+            "!" -> !isTruthy(right)
+            else -> null
         }
     }
 
@@ -61,109 +148,68 @@ class Interpreter : ExpressionVisitor<Any?> {
         val left = evaluate(expr.left)
         val right = evaluate(expr.right)
 
-        return when (expr.operation.type) {
-            // Equality
-            TokenType.BANG_EQUAL -> {
-                // Explicitly check for Number types and compare values
-                if (left is Number && right is Number) {
-                    left.toDouble() != right.toDouble()
-                } else {
-                    // Fallback for comparing other types (string, boolean, nil)
-                    left != right
-                }
+        return when (expr.operation.lexeme) {
+            // Arithmetic (using type checks for safety)
+            "-" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l - r }
+            
+            // '+' operator: Handles both numeric addition and string concatenation
+            "+" -> when {
+                left is Double && right is Double -> left + right
+                // If either operand is a string, convert the other to string and concatenate.
+                left is String || right is String -> stringify(left) + stringify(right)
+                
+                else -> throw RuntimeError(expr.operation, "Operands must be two numbers or two strings for '+'.")
             }
-            TokenType.EQUAL_EQUAL -> {
-                // Explicitly check for Number types and compare values
-                if (left is Number && right is Number) {
-                    left.toDouble() == right.toDouble()
-                } else {
-                    // Fallback for comparing other types (string, boolean, nil)
-                    left == right
-                }
-            }
-
+            "*" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l * r }
+            "/" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l / r }
+            "^" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l.pow(r) }
+            
             // Comparison
-            TokenType.GREATER -> {
-                checkNumberOperands(expr.operation, left, right)
-                (left as Number).toDouble() > (right as Number).toDouble()
-            }
-            TokenType.GREATER_EQUAL -> {
-                checkNumberOperands(expr.operation, left, right)
-                (left as Number).toDouble() >= (right as Number).toDouble()
-            }
-            TokenType.LESS -> {
-                checkNumberOperands(expr.operation, left, right)
-                (left as Number).toDouble() < (right as Number).toDouble()
-            }
-            TokenType.LESS_EQUAL -> {
-                checkNumberOperands(expr.operation, left, right)
-                (left as Number).toDouble() <= (right as Number).toDouble()
-            }
-            
-            // Arithmetic
-            TokenType.MINUS -> {
-                checkNumberOperands(expr.operation, left, right)
-                (left as Number).toDouble() - (right as Number).toDouble()
-            }
-            
-            // '+' is for addition OR string concatenation
-            TokenType.PLUS -> {
-                if (left is String && right is String) {
-                    left + right
-                } else if (left is Number && right is Number) {
-                    (left as Number).toDouble() + (right as Number).toDouble()
-                } else {
-                    throw RuntimeError(expr.operation, "Operands must be two numbers or two strings for '+'.")
-                }
-            }
-            TokenType.SLASH -> {
-                checkNumberOperands(expr.operation, left, right)
-                if ((right as Number).toDouble() == 0.0) {
-                    throw RuntimeError(expr.operation, "Division by zero.")
-                }
-                (left as Number).toDouble() / right.toDouble()
-            }
-            TokenType.STAR -> {
-                checkNumberOperands(expr.operation, left, right)
-                (left as Number).toDouble() * (right as Number).toDouble()
-            }
-            TokenType.CARET -> {
-                checkNumberOperands(expr.operation, left, right)
-                (left as Number).toDouble().pow((right as Number).toDouble())
-            }
+            ">" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l > r }
+            ">=" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l >= r }
+            "<" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l < r }
+            "_<=" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l <= r }
 
-            else -> null // Should not happen
+            // Equality
+            "!=" -> !isEqual(left, right)
+            "==" -> isEqual(left, right)
+            
+            else -> null
         }
     }
 
-    override fun visitIdentifierExpression(expr: Expression.Identifier): Any? {
-        // Since we haven't implemented Environment/variable storage yet, this should error.
-        throw RuntimeError(expr.name, "Attempted to use an identifier '${expr.name.lexeme}' before variable storage is implemented.")
-    }
+    // --- Type Checks and Utilities ---
 
-    // --- Utility Methods ---
-    
     private fun isTruthy(obj: Any?): Boolean {
+        // nil and false are falsey; everything else is truthy
         if (obj == null) return false
         if (obj is Boolean) return obj
-        // Every other value (numbers, strings, etc.) is truthy
-        return true 
+        return true
+    }
+    
+    private fun isEqual(a: Any?, b: Any?): Boolean {
+        // nil == nil is true
+        if (a == null && b == null) return true
+        // only one is nil, so they are not equal
+        if (a == null) return false
+        
+        return a == b
     }
 
-    private fun checkNumberOperand(operator: Token, operand: Any?) {
-        if (operand is Number) return
-        throw RuntimeError(operator, "Operand for '${operator.lexeme}' must be a number.")
+    private fun checkNumberOperand(op: Token, operand: Any?): Double? {
+        if (operand is Double) return operand
+        throw RuntimeError(op, "Operand must be a number.")
     }
 
-    private fun checkNumberOperands(operator: Token, left: Any?, right: Any?) {
-        if (left is Number && right is Number) return
-        throw RuntimeError(operator, "Operands for '${operator.lexeme}' must be numbers.")
+    private fun checkNumberOperands(op: Token, left: Any?, right: Any?): Pair<Double, Double>? {
+        if (left is Double && right is Double) return Pair(left, right)
+        throw RuntimeError(op, "Operands must be numbers.")
     }
 
     private fun stringify(obj: Any?): String {
         if (obj == null) return "nil"
         
-        // Handle Kotlin's number representation (e.g., 5.0 -> 5)
+        // Clean up floating point representation (e.g., 10.0 -> 10)
         if (obj is Double) {
             var text = obj.toString()
             if (text.endsWith(".0")) {
