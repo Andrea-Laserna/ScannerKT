@@ -1,3 +1,4 @@
+// List of all visit methods to operate on the AST
 package interpreter
 
 import parser.Expression

@@ -9,6 +9,7 @@ import kotlin.math.pow
 // Custom exception for runtime errors (used to unwind the stack)
 class RuntimeError(val token: Token, message: String) : RuntimeException(message)
 
+// Interpreter implements that ExpressionVisitor interface from Visitor.kt
 class Interpreter : ExpressionVisitor<Any?> {
 
     // --- Core Interpreter Entry Point (used by Bridge.kt) ---
@@ -21,6 +22,7 @@ class Interpreter : ExpressionVisitor<Any?> {
         }
     }
 
+    // expr holds the AST node (e.g. Expression.Binary) to be evaluated with a type sealed class Expression
     private fun evaluate(expr: Expression): Any? {
         return expr.accept(this)
     }
