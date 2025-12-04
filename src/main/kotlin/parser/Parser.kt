@@ -2,7 +2,7 @@ package parser
 
 import main.Bridge
 import scanner.Token
-import scanner.TokenType
+import scanner.TokenType // Ensure TokenType is imported
 import kotlin.math.exp
 
 // ps. ga base lng ko sng algo sa LEC4 slide ni ma'am ara
@@ -12,12 +12,53 @@ class Parser(val tokens: TokenStream) {
 
     // --- Statement Parsing ---
 
-    fun parse(): List<Statement> {
-        val statements = mutableListOf<Statement>()
+    /**
+     * The main parsing function. It returns the single, recursive Program tree root.
+     * [MODIFIED] Now initiates the construction of the pure recursive Program structure,
+     * avoiding the use of an intermediate List collection.
+     */
+    fun parse(): Program { 
+        return programSequence()
+    }
+
+    /**
+     * Builds the Program tree iteratively by parsing statements and prepending them
+     * to the sequence structure. Since prepending reverses the order, the resulting
+     * structure must be reversed again before returning.
+     */
+    private fun programSequence(): Program {
+        var reversedSequence: Program = Program.Empty
+        
+        // 1. Build the tree structure backwards (Last statement becomes the head of this sequence)
         while (tokens.nextToken?.type != TokenType.EOF) {
-            statements.add(declaration())
+            val statement = declaration()
+            // Prepend the new statement to the current structure
+            reversedSequence = Program.Sequence(statement, reversedSequence)
         }
-        return statements
+
+        // 2. Reverse the sequence tree to restore the correct program order
+        return reverseProgramSequence(reversedSequence)
+    }
+
+    /**
+     * Traverses a Program sequence structure and reverses the order of the statements
+     * to ensure proper execution flow.
+     */
+    private fun reverseProgramSequence(program: Program): Program {
+        var reversed: Program = Program.Empty
+        var current: Program = program
+
+        // Traverse the input sequence and prepend each head to the new `reversed` sequence
+        while (current != Program.Empty) {
+            when (val seq = current) {
+                is Program.Sequence -> {
+                    reversed = Program.Sequence(seq.head, reversed)
+                    current = seq.tail
+                }
+                Program.Empty -> break
+            }
+        }
+        return reversed
     }
 
     private fun declaration(): Statement {
@@ -63,7 +104,7 @@ class Parser(val tokens: TokenStream) {
             return Statement.Block(block())
         }
         return expressionStatement()
-    }   
+    }
     
     private fun printStatement(): Statement {
         val value = expr()

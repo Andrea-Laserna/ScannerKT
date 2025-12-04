@@ -32,4 +32,13 @@ sealed class Statement {
     data class Ask(val name: Token, val prompt: Expression) : Statement() {
         override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitAskStatement(this)
     }
+
+}
+
+// Root of statements
+sealed interface Program {
+    // Represents a non-empty sequence of statements.
+    data class Sequence(val head: Statement, val tail: Program) : Program
+    // Represents the end of the program (base case for recursion)
+    data object Empty : Program
 }

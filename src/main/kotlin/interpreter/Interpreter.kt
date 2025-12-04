@@ -13,22 +13,32 @@ import kotlin.math.pow
  */
 class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
     // Global scope environment: The root of the scope chain.
-    private val globals = Environment()
+    private val globals = Environment() 
     // Current environment reference: Points to the environment currently in use.
     private var environment = globals
 
     // --- Entry Point ---
 
     /**
-     * Entry point for interpreting a full list of statements (a script).
+     * Entry point for interpreting the entire program tree.
+     * [MODIFIED] Traverses the Program recursively (Sequence/Empty) instead of iterating a list.
      */
-    fun interpret(statements: List<Statement>) {
+    fun interpret(program: Program) {
+        var currentProgram: Program = program
         try {
             // Optional: Set up the global environment (e.g., native functions) if necessary
             
-            for (statement in statements) {
-                execute(statement)
+            // Traverse the recursive Program structure until we hit the Empty node
+            while (currentProgram != Program.Empty) {
+                when (val seq = currentProgram) {
+                    is Program.Sequence -> {
+                        execute(seq.head) // Execute the current statement
+                        currentProgram = seq.tail // Move to the next statement in the sequence
+                    }
+                    Program.Empty -> break // Should be caught by the loop condition, but safe here
+                }
             }
+
         } catch (error: RuntimeError) {
             // Catches runtime errors and reports them using the Bridge
             Bridge.runtimeError(error)
@@ -57,20 +67,18 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
 
     // Variable Declaration Logic (var x = value;)
     override fun visitVarStatement(stmt: Statement.Var) {
-        // Default value for variables
         var value: Any? = null
-        // If user provided an assignent expression (=)
         if (stmt.initializer != null) {
-            // Evaluate initial value
             value = evaluate(stmt.initializer)
         }
-        // Define the variable (name value pair) in the current scope
-        environment.define(stmt.name.lexeme, value)
+        // Define the variable in the current scope
+        environment.define(stmt.name.lexeme, value) 
     }
 
     // Block Scope Logic ({ statements })
     override fun visitBlockStatement(stmt: Statement.Block) {
         // Create a new scope (environment) linked to the current one
+        // This execution still iterates over a list of statements within the block
         executeBlock(stmt.statements, Environment(environment))
     }
     
@@ -168,7 +176,7 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
             ">" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l > r }
             ">=" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l >= r }
             "<" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l < r }
-            "_<=" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l <= r }
+            "<=" -> checkNumberOperands(expr.operation, left, right)?.let { (l, r) -> l <= r }
 
             // Equality
             "!=" -> !isEqual(left, right)
