@@ -17,6 +17,31 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
     // Current environment reference: Points to the environment currently in use.
     private var environment = globals
 
+    init {
+        // Native functions
+        globals.define("clock", object : LoxCallable {
+            override fun arity(): Int = 0
+            override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                return (System.currentTimeMillis() / 1000.0)
+            }
+            override fun toString(): String = "<native fn clock>"
+        })
+        globals.define("toString", object : LoxCallable {
+            override fun arity(): Int = 1
+            override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                return interpreter.stringify(arguments[0])
+            }
+            override fun toString(): String = "<native fn toString>"
+        })
+        globals.define("readLine", object : LoxCallable {
+            override fun arity(): Int = 0
+            override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                return kotlin.io.readLine()
+            }
+            override fun toString(): String = "<native fn readLine>"
+        })
+    }
+
     // --- Entry Point ---
 
     /**
@@ -93,6 +118,91 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
         println("--- ASK: $prompt (Storing result in: ${stmt.name.lexeme}) ---")
         environment.define(stmt.name.lexeme, null) // Initialize the variable in the environment
     }
+
+    override fun visitReserveStatement(stmt: Statement.Reserve) {
+        // Define reserved variable with nil
+        environment.define(stmt.name.lexeme, null)
+    }
+
+    override fun visitMoveStatement(stmt: Statement.Move) {
+        val value = evaluate(stmt.value)
+        // Try to assign; if undefined, define in current scope
+        try {
+            environment.assign(stmt.target, value)
+        } catch (e: RuntimeError) {
+            environment.define(stmt.target.lexeme, value)
+        }
+    }
+
+    override fun visitIncStatement(stmt: Statement.Inc) {
+        val stepVal = evaluate(stmt.step)
+        val currentVal = try { environment.get(stmt.target) } catch (e: RuntimeError) { null }
+        val newVal = if (currentVal is Double && stepVal is Double) currentVal + stepVal else currentVal
+        if (newVal == null) throw RuntimeError(stmt.target, "INC requires numeric variable and step.")
+        try {
+            environment.assign(stmt.target, newVal)
+        } catch (e: RuntimeError) {
+            environment.define(stmt.target.lexeme, newVal)
+        }
+    }
+
+    override fun visitDecStatement(stmt: Statement.Dec) {
+        val stepVal = evaluate(stmt.step)
+        val currentVal = try { environment.get(stmt.target) } catch (e: RuntimeError) { null }
+        val newVal = if (currentVal is Double && stepVal is Double) currentVal - stepVal else currentVal
+        if (newVal == null) throw RuntimeError(stmt.target, "DEC requires numeric variable and step.")
+        try {
+            environment.assign(stmt.target, newVal)
+        } catch (e: RuntimeError) {
+            environment.define(stmt.target.lexeme, newVal)
+        }
+    }
+
+    override fun visitWhenStatement(stmt: Statement.When) {
+        val selector = evaluate(stmt.selector)
+        // Evaluate branches: first branch whose predicate matches selector runs its action
+        for (branch in stmt.branches) {
+            if (predicateMatches(branch.predicate.lexeme, selector)) {
+                executeBlock(branch.action, Environment(environment))
+                return
+            }
+        }
+        // Else branch
+        if (stmt.elseBranch != null) {
+            executeBlock(stmt.elseBranch, Environment(environment))
+        }
+    }
+
+    override fun visitLoopStatement(stmt: Statement.Loop) {
+        do {
+            executeBlock(stmt.body, Environment(environment))
+            // Evaluate tail predicate; if absent, run once
+        } while (stmt.tailPredicate?.let { isPredicateTrue(it) } == true)
+    }
+
+    override fun visitIfStatement(stmt: Statement.If) {
+        if (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.thenBranch)
+        } else if (stmt.elseBranch != null) {
+            execute(stmt.elseBranch)
+        }
+    }
+
+    override fun visitWhileStatement(stmt: Statement.While) {
+        while (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.body)
+        }
+    }
+
+    override fun visitFunctionStatement(stmt: Statement.Function) {
+        val function = LoxFunction(stmt, environment)
+        environment.define(stmt.name.lexeme, function)
+    }
+
+    override fun visitReturnStatement(stmt: Statement.Return) {
+        val value = if (stmt.value != null) evaluate(stmt.value) else null
+        throw ReturnException(value)
+    }
     
     /**
      * Executes a list of statements within a new, temporary environment (scope).
@@ -152,8 +262,107 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
         }
     }
 
+    override fun visitConcatExpression(expr: Expression.Concat): Any? {
+        val sb = StringBuilder()
+        for (part in expr.parts) {
+            sb.append(stringify(evaluate(part)))
+        }
+        return sb.toString()
+    }
+
+    override fun visitOpCallExpression(expr: Expression.OpCall): Any? {
+        val name = expr.name.lexeme.uppercase()
+        val args = expr.args.map { evaluate(it) }
+        return when (name) {
+            "ADD_OP", "ADD" -> binaryNum(args, name) { a, b -> a + b }
+            "SUB_OP", "SUB" -> binaryNum(args, name) { a, b -> a - b }
+            "MUL_OP", "MUL" -> binaryNum(args, name) { a, b -> a * b }
+            "DIV_OP", "DIV" -> binaryNum(args, name) { a, b -> a / b }
+            "MOD_OP", "MOD" -> binaryNum(args, name) { a, b -> a % b }
+            "EXP_OP", "EXP" -> binaryNum(args, name) { a, b -> a.pow(b) }
+            "INC" -> unaryNum(args, name) { a -> a + 1.0 }
+            "DEC" -> unaryNum(args, name) { a -> a - 1.0 }
+            "RAND" -> {
+                // Simple placeholder: RAND min to max
+                if (args.size >= 2 && args[0] is Double && args[1] is Double) {
+                    val min = (args[0] as Double).toInt()
+                    val max = (args[1] as Double).toInt()
+                    (min..max).random().toDouble()
+                } else 0.0
+            }
+            "CMP" -> {
+                // Return three-way compare: -1 if a<b, 0 if equal, 1 if greater
+                if (args.size >= 2 && args[0] is Double && args[1] is Double) {
+                    val a = args[0] as Double
+                    val b = args[1] as Double
+                    when {
+                        a < b -> -1.0
+                        a > b -> 1.0
+                        else -> 0.0
+                    }
+                } else 0.0
+            }
+            // String ops
+            "LEN" -> {
+                val s = args.getOrNull(0) as? String ?: return 0.0
+                s.length.toDouble()
+            }
+            "CHAR" -> {
+                val s = args.getOrNull(0) as? String ?: return ""
+                val i = (args.getOrNull(1) as? Double)?.toInt() ?: return ""
+                if (i < 0 || i >= s.length) "" else s[i].toString()
+            }
+            "SUBSTR" -> {
+                val s = args.getOrNull(0) as? String ?: return ""
+                val start = (args.getOrNull(1) as? Double)?.toInt() ?: 0
+                val len = (args.getOrNull(2) as? Double)?.toInt() ?: 0
+                val from = start.coerceIn(0, s.length)
+                val to = (from + len).coerceIn(0, s.length)
+                s.substring(from, to)
+            }
+            "SETCHAR" -> {
+                val s = args.getOrNull(0) as? String ?: return ""
+                val idx = (args.getOrNull(1) as? Double)?.toInt() ?: return s
+                val ch = args.getOrNull(2) as? String ?: return s
+                if (ch.isEmpty() || idx < 0 || idx >= s.length) return s
+                val b = StringBuilder(s)
+                b.setCharAt(idx, ch[0])
+                b.toString()
+            }
+            else -> null
+        }
+    }
+
+    override fun visitPredCallExpression(expr: Expression.PredCall): Any? {
+        // Evaluate predicate on its arguments; return boolean
+        val name = expr.name.lexeme.uppercase()
+        val args = expr.args.map { evaluate(it) }
+        return when (name) {
+            "EQUAL" -> compBool(args) { c -> c == 0.0 }
+            "NOTEQUAL" -> compBool(args) { c -> c != 0.0 }
+            "LESS" -> compBool(args) { c -> c < 0.0 }
+            "GREATER" -> compBool(args) { c -> c > 0.0 }
+            "LESSEQ" -> compBool(args) { c -> c <= 0.0 }
+            "GREATEREQ" -> compBool(args) { c -> c >= 0.0 }
+            "OK" -> args.firstOrNull() as? Boolean ?: false
+            "ERR" -> !(args.firstOrNull() as? Boolean ?: false)
+            else -> false
+        }
+    }
+
     override fun visitBinaryExpression(expr: Expression.Binary): Any? {
         val left = evaluate(expr.left)
+        // Short-circuit logical operators
+        if (expr.operation.lexeme == "or" || expr.operation.lexeme == "||") {
+            val lv = evaluate(expr.left)
+            if (isTruthy(lv)) return lv
+            return evaluate(expr.right)
+        }
+        if (expr.operation.lexeme == "and" || expr.operation.lexeme == "&&") {
+            val lv = evaluate(expr.left)
+            if (!isTruthy(lv)) return lv
+            return evaluate(expr.right)
+        }
         val right = evaluate(expr.right)
 
         return when (expr.operation.lexeme) {
@@ -184,6 +393,19 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
             
             else -> null
         }
+    }
+
+    override fun visitCallExpression(expr: Expression.Call): Any? {
+        val callee = evaluate(expr.callee)
+        val arguments = expr.arguments.map { evaluate(it) }
+
+        if (callee !is LoxCallable) {
+            throw RuntimeError((expr.callee as? Expression.Identifier)?.name ?: Token(scanner.TokenType.IDENTIFIER, "<fn>", null, 0), "Can only call functions.")
+        }
+        if (arguments.size != callee.arity()) {
+            throw RuntimeError(expr.paren, "Expected ${callee.arity()} arguments but got ${arguments.size}.")
+        }
+        return callee.call(this, arguments)
     }
 
     // --- Type Checks and Utilities ---
@@ -228,4 +450,95 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
 
         return obj.toString()
     }
+
+    // --- Helpers for op calls and predicates ---
+
+    private fun binaryNum(args: List<Any?>, name: String, f: (Double, Double) -> Double): Double? {
+        if (args.size < 2) return null
+        val a = args[0]
+        val b = args[1]
+        if (a is Double && b is Double) return f(a, b)
+        return null
+    }
+
+    private fun unaryNum(args: List<Any?>, name: String, f: (Double) -> Double): Double? {
+        if (args.isEmpty()) return null
+        val a = args[0]
+        if (a is Double) return f(a)
+        return null
+    }
+
+    private fun compBool(args: List<Any?>, pred: (Double) -> Boolean): Boolean {
+        // Compute compare result c: if a,b provided use CMP(a,b); else expect first arg is c
+        val c: Double? = when {
+            args.size >= 2 && args[0] is Double && args[1] is Double -> {
+                val a = args[0] as Double
+                val b = args[1] as Double
+                when {
+                    a < b -> -1.0
+                    a > b -> 1.0
+                    else -> 0.0
+                }
+            }
+            args.isNotEmpty() && args[0] is Double -> args[0] as Double
+            else -> null
+        }
+        return c?.let { pred(it) } ?: false
+    }
+
+    private fun predicateMatches(name: String, selector: Any?): Boolean {
+        val n = name.uppercase()
+        val c = when (selector) {
+            is Double -> selector
+            is Boolean -> if (selector) 0.0 else 1.0
+            else -> null
+        }
+        return when (n) {
+            "EQUAL" -> c?.let { it == 0.0 } ?: false
+            "NOTEQUAL" -> c?.let { it != 0.0 } ?: false
+            "LESS" -> c?.let { it < 0.0 } ?: false
+            "GREATER" -> c?.let { it > 0.0 } ?: false
+            "LESSEQ" -> c?.let { it <= 0.0 } ?: false
+            "GREATEREQ" -> c?.let { it >= 0.0 } ?: false
+            "OK" -> selector is Boolean && selector
+            "ERR" -> selector is Boolean && !selector
+            else -> false
+        }
+    }
+
+    private fun isPredicateTrue(expr: Expression): Boolean {
+        val v = evaluate(expr)
+        return when (v) {
+            is Boolean -> v
+            is Double -> v != 0.0
+            else -> false
+        }
+    }
 }
+
+// Callable interface
+interface LoxCallable {
+    fun arity(): Int
+    fun call(interpreter: Interpreter, arguments: List<Any?>): Any?
+}
+
+// Function object with closure
+class LoxFunction(private val declaration: Statement.Function, private val closure: Environment) : LoxCallable {
+    override fun arity(): Int = declaration.params.size
+    override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+        val environment = Environment(closure)
+        for (i in declaration.params.indices) {
+            environment.define(declaration.params[i].lexeme, arguments[i])
+        }
+        try {
+            interpreter.executeBlock(declaration.body, environment)
+        } catch (ret: ReturnException) {
+            return ret.value
+        }
+        return null
+    }
+    override fun toString(): String = "<fn ${declaration.name.lexeme}>"
+}
+
+// Return unwinding via exception
+class ReturnException(val value: Any?) : RuntimeException(null, null, false, false)

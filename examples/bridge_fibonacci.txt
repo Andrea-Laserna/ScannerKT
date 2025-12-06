@@ -1,0 +1,18 @@
+# Bridge-style recursive Fibonacci using FUNC/RET/CALL and WHEN/CMP
+FUNC fibonacci(n) {
+    RES_CMP c
+    MOVE c, CMP n, 1
+    WHEN c {
+        LESSEQ -> RET n
+        ELSE -> RET CALL fibonacci(n - 1) + CALL fibonacci(n - 2)
+    }
+}
+
+RES_INT i
+MOVE i, 0
+RES_CMP c
+LOOP {
+    PRINT CONCAT "fib(", CONCAT i, ") = ", CALL fibonacci(i)
+    INC i, 1
+    MOVE c, CMP i, 15
+} LESS c

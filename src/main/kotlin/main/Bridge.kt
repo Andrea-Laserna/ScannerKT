@@ -59,32 +59,38 @@ object Bridge {
 
     // Reworked 'run' function to handle multiple statements
     private fun run(source: String) {
+        // ===========
         // Scanner
+        // ===========
         val scanner = TokenScanner(source)
         val tokens: List<Token> = scanner.scanTokens()
 
+        // for (token in tokens) {
+        //     // Uncomment the next line to see the scanned tokens
+        //     println(token)
+        // }
+
+        // ==========
         // Parser
+        // ==========
         val stream = TokenStream(tokens)
         val parser = Parser(stream)
-        // Parse the whole file/input as a list of statements
-        val statements = parser.parse()
+        // Parse the whole file/input as a list of statements (Program tree)
+        val program = parser.parse()
 
         // Stop if there was a syntax error during parsing
         if (errorExists) return
 
-        // Interpreter
-        // Interpreting a list of statements changes the program state (Environment)
-        interpreter.interpret(statements)
-        
-        // Removed the AstPrinter call here as we are now running full programs.
-        // If needed for debugging:
-        // if (!errorExists) {
-        //     val printer = AstPrinter()
-        //     for (stmt in statements) {
-        //         // This assumes AstPrinter is updated to print statements, 
-        //         // but the simplest thing is to just run the code now.
-        //     }
-        // }
+        // Print the parsed program using AstPrinter for visibility
+        // println("[Parser] Parse completed. AST:")
+        // val printer = AstPrinter()
+        // printer.printProgram(program)
+
+        // Run the interpreter on the parsed program tree
+        interpreter.interpret(program)
+
+        // Interpreter (keep commented unless ready to execute Program trees)
+        // interpreter.interpretProgram(program)
     }
 
     // error handling
