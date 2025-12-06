@@ -67,6 +67,7 @@ class Parser(val tokens: TokenStream) {
             while (match(TokenType.COMMENT)) { /* skip */ }
 
             if (match(TokenType.VAR)) return varDeclaration()
+            if (match(TokenType.FUN) || match(TokenType.FUNC)) return function("function")
             // NEW: Add parsing for the 'ask' keyword
             if (match(TokenType.ASK)) return askStatement() 
             return statement()
@@ -101,6 +102,15 @@ class Parser(val tokens: TokenStream) {
         if (match(TokenType.PRINT)) {
             return printStatement()
         }
+        if (match(TokenType.IF)) {
+            return ifStatement()
+        }
+        if (match(TokenType.WHILE)) {
+            return whileStatement()
+        }
+        if (match(TokenType.FOR)) {
+            return forStatement()
+        }
         if (match(TokenType.WHEN)) {
             return whenStatement()
         }
@@ -110,8 +120,17 @@ class Parser(val tokens: TokenStream) {
         if (match(TokenType.MOVE)) {
             return moveStatement()
         }
+        if (match(TokenType.INC)) {
+            return incStatement()
+        }
+        if (match(TokenType.DEC)) {
+            return decStatement()
+        }
         if (match(TokenType.RES_INT, TokenType.RES_STR, TokenType.RES_FLOAT, TokenType.RES_BOOL, TokenType.RES_CMP)) {
             return reserveDeclaration()
+        }
+        if (match(TokenType.RETURN) || match(TokenType.RET)) {
+            return returnStatement()
         }
         if (match(TokenType.LEFT_BRACE)) {
             return Statement.Block(block())
@@ -145,6 +164,88 @@ class Parser(val tokens: TokenStream) {
         return statements
     }
 
+    // funDecl → "fun" IDENTIFIER "(" parameters? ")" block
+    private fun function(kind: String): Statement.Function {
+        val name = consume(TokenType.IDENTIFIER, "Expect $kind name.")
+        consume(TokenType.LEFT_PAREN, "Expect '(' after $kind name.")
+        val parameters = mutableListOf<Token>()
+        if (tokens.nextToken?.type != TokenType.RIGHT_PAREN) {
+            do {
+                if (parameters.size >= 255) {
+                    error(tokens.nextToken!!, "Can't have more than 255 parameters.")
+                }
+                parameters.add(consume(TokenType.IDENTIFIER, "Expect parameter name."))
+            } while (match(TokenType.COMMA))
+        }
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
+        consume(TokenType.LEFT_BRACE, "Expect '{' before $kind body.")
+        val body = block()
+        return Statement.Function(name, parameters, body)
+    }
+
+    private fun returnStatement(): Statement {
+        val keyword = tokens.current!!
+        val value = if (tokens.nextToken?.type != TokenType.SEMICOLON) expr() else null
+        optionalSemicolon()
+        return Statement.Return(keyword, value)
+    }
+
+    // ifStmt → "if" "(" expression ")" statement ( "else" statement )? ;
+    private fun ifStatement(): Statement {
+        consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.")
+        val condition = expr()
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after if condition.")
+        val thenBranch = statement()
+        val elseBranch = if (match(TokenType.ELSE)) statement() else null
+        return Statement.If(condition, thenBranch, elseBranch)
+    }
+
+    // whileStmt → "while" "(" expression ")" statement ;
+    private fun whileStatement(): Statement {
+        consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
+        val condition = expr()
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after while condition.")
+        val body = statement()
+        return Statement.While(condition, body)
+    }
+
+    // forStmt → "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
+    // Desugar to while
+    private fun forStatement(): Statement {
+        consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
+
+        val initializer: Statement? = when {
+            match(TokenType.SEMICOLON) -> null
+            match(TokenType.VAR) -> varDeclaration()
+            else -> expressionStatement()
+        }
+
+        var condition: Expression? = null
+        if (!match(TokenType.SEMICOLON)) {
+            condition = expr()
+            consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
+        }
+
+        var increment: Expression? = null
+        if (!match(TokenType.RIGHT_PAREN)) {
+            increment = expr()
+            consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
+        }
+
+        var body = statement()
+
+        if (increment != null) {
+            body = Statement.Block(listOf(body, Statement.ExpressionStatement(increment)))
+        }
+
+        val whileCond = condition ?: Expression.Literal(true)
+        body = Statement.While(whileCond, body)
+
+        return if (initializer != null) {
+            Statement.Block(listOf(initializer, body))
+        } else body
+    }
+
     // MOVE target, expr
     private fun moveStatement(): Statement {
         val target = consume(TokenType.IDENTIFIER, "Expect target after MOVE.")
@@ -152,6 +253,23 @@ class Parser(val tokens: TokenStream) {
         val value = expr()
         optionalSemicolon()
         return Statement.Move(target, value)
+    }
+
+    // INC target, step
+    private fun incStatement(): Statement {
+        val target = consume(TokenType.IDENTIFIER, "Expect target after INC.")
+        consume(TokenType.COMMA, "Expect ',' after target.")
+        val step = expr()
+        optionalSemicolon()
+        return Statement.Inc(target, step)
+    }
+
+    private fun decStatement(): Statement {
+        val target = consume(TokenType.IDENTIFIER, "Expect target after DEC.")
+        consume(TokenType.COMMA, "Expect ',' after target.")
+        val step = expr()
+        optionalSemicolon()
+        return Statement.Dec(target, step)
     }
 
     // RES_* name
@@ -253,7 +371,7 @@ class Parser(val tokens: TokenStream) {
      */
     private fun assignment(): Expression {
         // Parse the next lower-precedence level (equality)
-        val expr = equality() 
+        val expr = logicOr() 
 
         // Check if we have an assignment operator
         if (match(TokenType.EQUAL)) {
@@ -276,7 +394,28 @@ class Parser(val tokens: TokenStream) {
         return expr
     }
 
-    // ===== EQUALITY (Existing, no change needed) =====
+    // ===== LOGICAL OR/AND, EQUALITY =====
+    private fun logicOr(): Expression {
+        var expr = logicAnd()
+        while (match(TokenType.OR) || match(TokenType.OR_OR)) {
+            val op = tokens.current!!
+            val right = logicAnd()
+            expr = Expression.Binary(expr, op, right)
+        }
+        return expr
+    }
+
+    private fun logicAnd(): Expression {
+        var expr = equality()
+        while (match(TokenType.AND) || match(TokenType.AND_AND)) {
+            val op = tokens.current!!
+            val right = equality()
+            expr = Expression.Binary(expr, op, right)
+        }
+        return expr
+    }
+
+    // ===== EQUALITY =====
     private fun equality(): Expression{
         var expr = comparison()
         while (tokens.nextToken?.type == TokenType.EQUAL_EQUAL ||
@@ -342,11 +481,46 @@ class Parser(val tokens: TokenStream) {
             if (match(TokenType.CONCAT)) {
                 return concatExpr()
         }
+        // Bridge-style CALL keyword for function call: CALL ident(args)
+        if (match(TokenType.CALL)) {
+            val calleeIdent = consume(TokenType.IDENTIFIER, "Expect function name after CALL.")
+            consume(TokenType.LEFT_PAREN, "Expect '(' after function name.")
+            val args = mutableListOf<Expression>()
+            if (tokens.nextToken?.type != TokenType.RIGHT_PAREN) {
+                do { args.add(expr()) } while (match(TokenType.COMMA))
+            }
+            val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
+            return Expression.Call(Expression.Identifier(calleeIdent), paren, args)
+        }
         // Operation calls like ADD_OP, SUB_OP, MUL_OP, DIV_OP, MOD_OP, EXP_OP, INC, DEC, RAND, CMP
         if (isOpKeyword(tokens.nextToken?.type)) {
             return opCall()
         }
-        return primary()
+        return call()
+    }
+
+    // call → primary ( "(" arguments? ")" )*
+    private fun call(): Expression {
+        var expr = primary()
+        while (true) {
+            if (match(TokenType.LEFT_PAREN)) {
+                expr = finishCall(expr)
+            } else {
+                break
+            }
+        }
+        return expr
+    }
+
+    private fun finishCall(callee: Expression): Expression {
+        val args = mutableListOf<Expression>()
+        if (tokens.nextToken?.type != TokenType.RIGHT_PAREN) {
+            do {
+                args.add(expr())
+            } while (match(TokenType.COMMA))
+        }
+        val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
+        return Expression.Call(callee, paren, args)
     }
 
     // Parse CONCAT sequences: CONCAT expr (',' CONCAT expr)*

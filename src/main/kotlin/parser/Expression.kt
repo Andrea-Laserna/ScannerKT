@@ -61,4 +61,9 @@ sealed class Expression {
     data class OpCall(val name: Token, val args: List<Expression>) : Expression() {
             override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitOpCallExpression(this)
     }
+
+    // Function call expression: callee(args)
+    data class Call(val callee: Expression, val paren: Token, val arguments: List<Expression>) : Expression() {
+        override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitCallExpression(this)
+    }
 }

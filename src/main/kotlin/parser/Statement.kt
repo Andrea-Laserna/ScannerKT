@@ -62,6 +62,36 @@ sealed class Statement {
         override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitMoveStatement(this)
     }
 
+    // INC target, step (mutates target directly)
+    data class Inc(val target: Token, val step: Expression) : Statement() {
+        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitIncStatement(this)
+    }
+
+    // DEC target, step (mutates target directly)
+    data class Dec(val target: Token, val step: Expression) : Statement() {
+        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitDecStatement(this)
+    }
+
+    // If-Else statement: if (condition) thenBranch else elseBranch?
+    data class If(val condition: Expression, val thenBranch: Statement, val elseBranch: Statement?) : Statement() {
+        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitIfStatement(this)
+    }
+
+    // While loop: while (condition) body
+    data class While(val condition: Expression, val body: Statement) : Statement() {
+        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitWhileStatement(this)
+    }
+
+    // Function declaration: fun name(params) { body }
+    data class Function(val name: Token, val params: List<Token>, val body: List<Statement>) : Statement() {
+        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitFunctionStatement(this)
+    }
+
+    // Return statement: return value?
+    data class Return(val keyword: Token, val value: Expression?) : Statement() {
+        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitReturnStatement(this)
+    }
+
 }
 
 // Root of statements

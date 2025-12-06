@@ -16,4 +16,5 @@ interface ExpressionVisitor<R> {
     fun visitConcatExpression(expr: Expression.Concat): R
     fun visitOpCallExpression(expr: Expression.OpCall): R
     fun visitPredCallExpression(expr: Expression.PredCall): R
+    fun visitCallExpression(expr: Expression.Call): R
 }

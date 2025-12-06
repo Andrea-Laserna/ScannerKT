@@ -194,6 +194,21 @@ do-while loop
 depending on the format.
 
 8.1 While Loop
+Additional Control Flow and Functions (Lox-style subset for lab):
+
+- statement: exprStmt | printStmt | varDecl | block | ifStmt | whileStmt | forStmt | returnStmt | funDecl | whenStmt | loopStmt | moveStmt | reserveDecl
+- ifStmt: `if ( expression ) statement ( else statement )?`
+- whileStmt: `while ( expression ) statement`
+- forStmt: `for ( ( varDecl | exprStmt | ';' ) expression? ';' expression? ) statement` (desugars to while)
+- returnStmt: `return expression? ';'`
+- funDecl: `fun IDENTIFIER ( parameters? ) block`
+- parameters: `IDENTIFIER ( ',' IDENTIFIER )*`
+- call: `primary ( '(' arguments? ')' )*`
+- arguments: `expression ( ',' expression )*`
+- logicOr: `logicAnd ( 'or' logicAnd )*` (also supports `||`)
+- logicAnd: `equality ( 'and' equality )*` (also supports `&&`)
+
+Examples available in `examples/` directory: `fibonacci.txt`, `closures.txt`.
 
 
 LOOP (condition) {

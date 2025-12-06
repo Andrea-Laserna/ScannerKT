@@ -67,6 +67,20 @@ class AstPrinter {
                 printTree(statement.value)
                 print(")")
             }
+            is Statement.Inc -> {
+                print("(inc ")
+                print(statement.target.lexeme)
+                print(" ")
+                printTree(statement.step)
+                print(")")
+            }
+            is Statement.Dec -> {
+                print("(dec ")
+                print(statement.target.lexeme)
+                print(" ")
+                printTree(statement.step)
+                print(")")
+            }
             is Statement.When -> {
                 print("(when ")
                 printTree(statement.selector)
@@ -94,6 +108,39 @@ class AstPrinter {
                     print(" ")
                     printTree(statement.tailPredicate)
                 }
+                print(")")
+            }
+            is Statement.If -> {
+                print("(if ")
+                printTree(statement.condition)
+                print(" then ")
+                printStatement(statement.thenBranch)
+                if (statement.elseBranch != null) {
+                    print(" else ")
+                    printStatement(statement.elseBranch)
+                }
+                print(")")
+            }
+            is Statement.While -> {
+                print("(while ")
+                printTree(statement.condition)
+                print(" ")
+                printStatement(statement.body)
+                print(")")
+            }
+            is Statement.Function -> {
+                print("(func ${statement.name.lexeme} (")
+                statement.params.forEachIndexed { idx, p ->
+                    if (idx > 0) print(" ")
+                    print(p.lexeme)
+                }
+                print(") ")
+                statement.body.forEach { s -> printStatement(s) }
+                print(")")
+            }
+            is Statement.Return -> {
+                print("(ret ")
+                if (statement.value != null) printTree(statement.value) else print("nil")
                 print(")")
             }
         }
@@ -152,6 +199,16 @@ class AstPrinter {
             is Expression.OpCall -> {
                 // Print operation call similarly to predicates
                 parenthesize(expression.name.lexeme, *expression.args.toTypedArray())
+            }
+            is Expression.Call -> {
+                // Print function call: (call callee args...)
+                print("(call ")
+                printTree(expression.callee)
+                for (arg in expression.arguments) {
+                    print(" ")
+                    printTree(arg)
+                }
+                print(")")
             }
             is Expression.Identifier -> {
                 print(expression.name.lexeme)

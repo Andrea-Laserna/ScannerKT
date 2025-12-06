@@ -17,6 +17,31 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
     // Current environment reference: Points to the environment currently in use.
     private var environment = globals
 
+    init {
+        // Native functions
+        globals.define("clock", object : LoxCallable {
+            override fun arity(): Int = 0
+            override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                return (System.currentTimeMillis() / 1000.0)
+            }
+            override fun toString(): String = "<native fn clock>"
+        })
+        globals.define("toString", object : LoxCallable {
+            override fun arity(): Int = 1
+            override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                return interpreter.stringify(arguments[0])
+            }
+            override fun toString(): String = "<native fn toString>"
+        })
+        globals.define("readLine", object : LoxCallable {
+            override fun arity(): Int = 0
+            override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+                return kotlin.io.readLine()
+            }
+            override fun toString(): String = "<native fn readLine>"
+        })
+    }
+
     // --- Entry Point ---
 
     /**
@@ -109,6 +134,30 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
         }
     }
 
+    override fun visitIncStatement(stmt: Statement.Inc) {
+        val stepVal = evaluate(stmt.step)
+        val currentVal = try { environment.get(stmt.target) } catch (e: RuntimeError) { null }
+        val newVal = if (currentVal is Double && stepVal is Double) currentVal + stepVal else currentVal
+        if (newVal == null) throw RuntimeError(stmt.target, "INC requires numeric variable and step.")
+        try {
+            environment.assign(stmt.target, newVal)
+        } catch (e: RuntimeError) {
+            environment.define(stmt.target.lexeme, newVal)
+        }
+    }
+
+    override fun visitDecStatement(stmt: Statement.Dec) {
+        val stepVal = evaluate(stmt.step)
+        val currentVal = try { environment.get(stmt.target) } catch (e: RuntimeError) { null }
+        val newVal = if (currentVal is Double && stepVal is Double) currentVal - stepVal else currentVal
+        if (newVal == null) throw RuntimeError(stmt.target, "DEC requires numeric variable and step.")
+        try {
+            environment.assign(stmt.target, newVal)
+        } catch (e: RuntimeError) {
+            environment.define(stmt.target.lexeme, newVal)
+        }
+    }
+
     override fun visitWhenStatement(stmt: Statement.When) {
         val selector = evaluate(stmt.selector)
         // Evaluate branches: first branch whose predicate matches selector runs its action
@@ -129,6 +178,30 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
             executeBlock(stmt.body, Environment(environment))
             // Evaluate tail predicate; if absent, run once
         } while (stmt.tailPredicate?.let { isPredicateTrue(it) } == true)
+    }
+
+    override fun visitIfStatement(stmt: Statement.If) {
+        if (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.thenBranch)
+        } else if (stmt.elseBranch != null) {
+            execute(stmt.elseBranch)
+        }
+    }
+
+    override fun visitWhileStatement(stmt: Statement.While) {
+        while (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.body)
+        }
+    }
+
+    override fun visitFunctionStatement(stmt: Statement.Function) {
+        val function = LoxFunction(stmt, environment)
+        environment.define(stmt.name.lexeme, function)
+    }
+
+    override fun visitReturnStatement(stmt: Statement.Return) {
+        val value = if (stmt.value != null) evaluate(stmt.value) else null
+        throw ReturnException(value)
     }
     
     /**
@@ -252,6 +325,17 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
 
     override fun visitBinaryExpression(expr: Expression.Binary): Any? {
         val left = evaluate(expr.left)
+        // Short-circuit logical operators
+        if (expr.operation.lexeme == "or" || expr.operation.lexeme == "||") {
+            val lv = evaluate(expr.left)
+            if (isTruthy(lv)) return lv
+            return evaluate(expr.right)
+        }
+        if (expr.operation.lexeme == "and" || expr.operation.lexeme == "&&") {
+            val lv = evaluate(expr.left)
+            if (!isTruthy(lv)) return lv
+            return evaluate(expr.right)
+        }
         val right = evaluate(expr.right)
 
         return when (expr.operation.lexeme) {
@@ -282,6 +366,19 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
             
             else -> null
         }
+    }
+
+    override fun visitCallExpression(expr: Expression.Call): Any? {
+        val callee = evaluate(expr.callee)
+        val arguments = expr.arguments.map { evaluate(it) }
+
+        if (callee !is LoxCallable) {
+            throw RuntimeError((expr.callee as? Expression.Identifier)?.name ?: Token(scanner.TokenType.IDENTIFIER, "<fn>", null, 0), "Can only call functions.")
+        }
+        if (arguments.size != callee.arity()) {
+            throw RuntimeError(expr.paren, "Expected ${callee.arity()} arguments but got ${arguments.size}.")
+        }
+        return callee.call(this, arguments)
     }
 
     // --- Type Checks and Utilities ---
@@ -391,3 +488,30 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
         }
     }
 }
+
+// Callable interface
+interface LoxCallable {
+    fun arity(): Int
+    fun call(interpreter: Interpreter, arguments: List<Any?>): Any?
+}
+
+// Function object with closure
+class LoxFunction(private val declaration: Statement.Function, private val closure: Environment) : LoxCallable {
+    override fun arity(): Int = declaration.params.size
+    override fun call(interpreter: Interpreter, arguments: List<Any?>): Any? {
+        val environment = Environment(closure)
+        for (i in declaration.params.indices) {
+            environment.define(declaration.params[i].lexeme, arguments[i])
+        }
+        try {
+            interpreter.executeBlock(declaration.body, environment)
+        } catch (ret: ReturnException) {
+            return ret.value
+        }
+        return null
+    }
+    override fun toString(): String = "<fn ${declaration.name.lexeme}>"
+}
+
+// Return unwinding via exception
+class ReturnException(val value: Any?) : RuntimeException(null, null, false, false)
