@@ -43,6 +43,8 @@ enum class TokenType {
 
     // Operations and intrinsics
     MOVE, ADD_OP, SUB_OP, MUL_OP, DIV_OP, MOD_OP, EXP_OP,
+    // String ops
+    LEN, CHAR, SETCHAR, SUBSTR,
     CONCAT,
     INC, DEC, RAND, CMP, 
 

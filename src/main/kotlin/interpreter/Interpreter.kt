@@ -302,6 +302,33 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
                     }
                 } else 0.0
             }
+            // String ops
+            "LEN" -> {
+                val s = args.getOrNull(0) as? String ?: return 0.0
+                s.length.toDouble()
+            }
+            "CHAR" -> {
+                val s = args.getOrNull(0) as? String ?: return ""
+                val i = (args.getOrNull(1) as? Double)?.toInt() ?: return ""
+                if (i < 0 || i >= s.length) "" else s[i].toString()
+            }
+            "SUBSTR" -> {
+                val s = args.getOrNull(0) as? String ?: return ""
+                val start = (args.getOrNull(1) as? Double)?.toInt() ?: 0
+                val len = (args.getOrNull(2) as? Double)?.toInt() ?: 0
+                val from = start.coerceIn(0, s.length)
+                val to = (from + len).coerceIn(0, s.length)
+                s.substring(from, to)
+            }
+            "SETCHAR" -> {
+                val s = args.getOrNull(0) as? String ?: return ""
+                val idx = (args.getOrNull(1) as? Double)?.toInt() ?: return s
+                val ch = args.getOrNull(2) as? String ?: return s
+                if (ch.isEmpty() || idx < 0 || idx >= s.length) return s
+                val b = StringBuilder(s)
+                b.setCharAt(idx, ch[0])
+                b.toString()
+            }
             else -> null
         }
     }

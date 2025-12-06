@@ -82,9 +82,9 @@ object Bridge {
         if (errorExists) return
 
         // Print the parsed program using AstPrinter for visibility
-        println("[Parser] Parse completed. AST:")
-        val printer = AstPrinter()
-        printer.printProgram(program)
+        // println("[Parser] Parse completed. AST:")
+        // val printer = AstPrinter()
+        // printer.printProgram(program)
 
         // Run the interpreter on the parsed program tree
         interpreter.interpret(program)

@@ -62,6 +62,11 @@ object Keywords{
         "DEC" to TokenType.DEC,
         "RAND" to TokenType.RAND,
         "CMP" to TokenType.CMP,
+        // String ops
+        "LEN" to TokenType.LEN,
+        "CHAR" to TokenType.CHAR,
+        "SUBSTR" to TokenType.SUBSTR,
+        "SETCHAR" to TokenType.SETCHAR,
 
         // Compare predicates
         "EQUAL" to TokenType.EQUAL_KW,

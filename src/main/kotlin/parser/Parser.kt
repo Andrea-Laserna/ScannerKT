@@ -552,7 +552,9 @@ class Parser(val tokens: TokenStream) {
     private fun isOpKeyword(t: TokenType?): Boolean {
         return when (t) {
             TokenType.ADD_OP, TokenType.SUB_OP, TokenType.MUL_OP, TokenType.DIV_OP, TokenType.MOD_OP, TokenType.EXP_OP,
-            TokenType.INC, TokenType.DEC, TokenType.RAND, TokenType.CMP -> true
+            TokenType.INC, TokenType.DEC, TokenType.RAND, TokenType.CMP,
+            // String ops for Bridge
+            TokenType.LEN, TokenType.CHAR, TokenType.SETCHAR, TokenType.SUBSTR -> true
             else -> false
         }
     }
