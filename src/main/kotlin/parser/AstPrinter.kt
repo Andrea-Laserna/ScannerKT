@@ -27,12 +27,12 @@ class AstPrinter {
             is Statement.Print -> {
                 print("(print ")
                 printTree(statement.expression)
-                print(");")
+                print(")")
             }
             is Statement.ExpressionStatement -> {
                 print("(expr-stmt ")
                 printTree(statement.expression)
-                print(");")
+                print(")")
             }
             is Statement.Var -> {
                 print("(var ${statement.name.lexeme} ")
@@ -57,6 +57,66 @@ class AstPrinter {
                 printTree(statement.prompt)
                 print(");")
             }
+            is Statement.Reserve -> {
+                print("(reserve ${statement.typeToken.lexeme} ${statement.name.lexeme})")
+            }
+            is Statement.Move -> {
+                print("(move ")
+                print(statement.target.lexeme)
+                print(" ")
+                printTree(statement.value)
+                print(")")
+            }
+            is Statement.When -> {
+                print("(when ")
+                printTree(statement.selector)
+                print(" { ")
+                statement.branches.forEach { b ->
+                    print("(")
+                    print(b.predicate.lexeme)
+                    print(" -> ")
+                    b.action.forEach { act -> printStatement(act) }
+                    print(") ")
+                }
+                if (statement.elseBranch != null) {
+                    print("(else -> ")
+                    statement.elseBranch.forEach { act -> printStatement(act) }
+                    print(") ")
+                }
+                print("}")
+                print(")")
+            }
+            is Statement.Loop -> {
+                print("(loop { ")
+                statement.body.forEach { s -> printStatement(s) }
+                print(" } ")
+                if (statement.tailPredicate != null) {
+                    print(" ")
+                    printTree(statement.tailPredicate)
+                }
+                print(")")
+            }
+        }
+    }
+    
+    // --- Program Printing (tree) ---
+    
+    fun printProgram(program: Program) {
+        printTreeProgram(program)
+        println()
+    }
+
+    private fun printTreeProgram(program: Program) {
+        when (program) {
+            is Program.Sequence -> {
+                print("(seq ")
+                printStatement(program.head)
+                printTreeProgram(program.tail)
+                print(")")
+            }
+            Program.Empty -> {
+                print("(empty)")
+            }
         }
     }
     
@@ -77,13 +137,37 @@ class AstPrinter {
             is Expression.Group -> {
                 parenthesize("group", expression.expr)
             }
+            is Expression.Concat -> {
+                // Print as (concat part1 part2 ...)
+                parenthesize("concat", *expression.parts.toTypedArray())
+            }
+            is Expression.PredCall -> {
+                // Print predicate name with its arguments
+                if (expression.args.isEmpty()) {
+                    print("(${expression.name.lexeme})")
+                } else {
+                    parenthesize(expression.name.lexeme, *expression.args.toTypedArray())
+                }
+            }
+            is Expression.OpCall -> {
+                // Print operation call similarly to predicates
+                parenthesize(expression.name.lexeme, *expression.args.toTypedArray())
+            }
             is Expression.Identifier -> {
                 print(expression.name.lexeme)
             }
             is Expression.Literal -> {
                 val value = expression.value
-                // Ensure nil/null is printed correctly, otherwise print value
-                print(value?.toString() ?: "nil")
+                // Print strings with quotes; nil/null as 'nil'; others via toString
+                when (value) {
+                    null -> print("nil")
+                    is String -> {
+                        // Escape embedded quotes minimally
+                        val escaped = value.replace("\"", "\\\"")
+                        print("\"$escaped\"")
+                    }
+                    else -> print(value.toString())
+                }
             }
         }
     }

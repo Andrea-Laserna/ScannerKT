@@ -12,4 +12,8 @@ interface StatementVisitor<R> {
     fun visitVarStatement(stmt: Statement.Var): R
     fun visitBlockStatement(stmt: Statement.Block): R
     fun visitAskStatement(stmt: Statement.Ask): R
+    fun visitReserveStatement(stmt: Statement.Reserve): R
+    fun visitMoveStatement(stmt: Statement.Move): R
+    fun visitWhenStatement(stmt: Statement.When): R
+    fun visitLoopStatement(stmt: Statement.Loop): R
 }

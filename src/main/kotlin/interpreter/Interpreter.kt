@@ -93,6 +93,43 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
         println("--- ASK: $prompt (Storing result in: ${stmt.name.lexeme}) ---")
         environment.define(stmt.name.lexeme, null) // Initialize the variable in the environment
     }
+
+    override fun visitReserveStatement(stmt: Statement.Reserve) {
+        // Define reserved variable with nil
+        environment.define(stmt.name.lexeme, null)
+    }
+
+    override fun visitMoveStatement(stmt: Statement.Move) {
+        val value = evaluate(stmt.value)
+        // Try to assign; if undefined, define in current scope
+        try {
+            environment.assign(stmt.target, value)
+        } catch (e: RuntimeError) {
+            environment.define(stmt.target.lexeme, value)
+        }
+    }
+
+    override fun visitWhenStatement(stmt: Statement.When) {
+        val selector = evaluate(stmt.selector)
+        // Evaluate branches: first branch whose predicate matches selector runs its action
+        for (branch in stmt.branches) {
+            if (predicateMatches(branch.predicate.lexeme, selector)) {
+                executeBlock(branch.action, Environment(environment))
+                return
+            }
+        }
+        // Else branch
+        if (stmt.elseBranch != null) {
+            executeBlock(stmt.elseBranch, Environment(environment))
+        }
+    }
+
+    override fun visitLoopStatement(stmt: Statement.Loop) {
+        do {
+            executeBlock(stmt.body, Environment(environment))
+            // Evaluate tail predicate; if absent, run once
+        } while (stmt.tailPredicate?.let { isPredicateTrue(it) } == true)
+    }
     
     /**
      * Executes a list of statements within a new, temporary environment (scope).
@@ -149,6 +186,67 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
             // Logical NOT: Reverses truthiness
             "!" -> !isTruthy(right)
             else -> null
+        }
+    }
+
+    override fun visitConcatExpression(expr: Expression.Concat): Any? {
+        val sb = StringBuilder()
+        for (part in expr.parts) {
+            sb.append(stringify(evaluate(part)))
+        }
+        return sb.toString()
+    }
+
+    override fun visitOpCallExpression(expr: Expression.OpCall): Any? {
+        val name = expr.name.lexeme.uppercase()
+        val args = expr.args.map { evaluate(it) }
+        return when (name) {
+            "ADD_OP", "ADD" -> binaryNum(args, name) { a, b -> a + b }
+            "SUB_OP", "SUB" -> binaryNum(args, name) { a, b -> a - b }
+            "MUL_OP", "MUL" -> binaryNum(args, name) { a, b -> a * b }
+            "DIV_OP", "DIV" -> binaryNum(args, name) { a, b -> a / b }
+            "MOD_OP", "MOD" -> binaryNum(args, name) { a, b -> a % b }
+            "EXP_OP", "EXP" -> binaryNum(args, name) { a, b -> a.pow(b) }
+            "INC" -> unaryNum(args, name) { a -> a + 1.0 }
+            "DEC" -> unaryNum(args, name) { a -> a - 1.0 }
+            "RAND" -> {
+                // Simple placeholder: RAND min to max
+                if (args.size >= 2 && args[0] is Double && args[1] is Double) {
+                    val min = (args[0] as Double).toInt()
+                    val max = (args[1] as Double).toInt()
+                    (min..max).random().toDouble()
+                } else 0.0
+            }
+            "CMP" -> {
+                // Return three-way compare: -1 if a<b, 0 if equal, 1 if greater
+                if (args.size >= 2 && args[0] is Double && args[1] is Double) {
+                    val a = args[0] as Double
+                    val b = args[1] as Double
+                    when {
+                        a < b -> -1.0
+                        a > b -> 1.0
+                        else -> 0.0
+                    }
+                } else 0.0
+            }
+            else -> null
+        }
+    }
+
+    override fun visitPredCallExpression(expr: Expression.PredCall): Any? {
+        // Evaluate predicate on its arguments; return boolean
+        val name = expr.name.lexeme.uppercase()
+        val args = expr.args.map { evaluate(it) }
+        return when (name) {
+            "EQUAL" -> compBool(args) { c -> c == 0.0 }
+            "NOTEQUAL" -> compBool(args) { c -> c != 0.0 }
+            "LESS" -> compBool(args) { c -> c < 0.0 }
+            "GREATER" -> compBool(args) { c -> c > 0.0 }
+            "LESSEQ" -> compBool(args) { c -> c <= 0.0 }
+            "GREATEREQ" -> compBool(args) { c -> c >= 0.0 }
+            "OK" -> args.firstOrNull() as? Boolean ?: false
+            "ERR" -> !(args.firstOrNull() as? Boolean ?: false)
+            else -> false
         }
     }
 
@@ -227,5 +325,69 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
         }
 
         return obj.toString()
+    }
+
+    // --- Helpers for op calls and predicates ---
+
+    private fun binaryNum(args: List<Any?>, name: String, f: (Double, Double) -> Double): Double? {
+        if (args.size < 2) return null
+        val a = args[0]
+        val b = args[1]
+        if (a is Double && b is Double) return f(a, b)
+        return null
+    }
+
+    private fun unaryNum(args: List<Any?>, name: String, f: (Double) -> Double): Double? {
+        if (args.isEmpty()) return null
+        val a = args[0]
+        if (a is Double) return f(a)
+        return null
+    }
+
+    private fun compBool(args: List<Any?>, pred: (Double) -> Boolean): Boolean {
+        // Compute compare result c: if a,b provided use CMP(a,b); else expect first arg is c
+        val c: Double? = when {
+            args.size >= 2 && args[0] is Double && args[1] is Double -> {
+                val a = args[0] as Double
+                val b = args[1] as Double
+                when {
+                    a < b -> -1.0
+                    a > b -> 1.0
+                    else -> 0.0
+                }
+            }
+            args.isNotEmpty() && args[0] is Double -> args[0] as Double
+            else -> null
+        }
+        return c?.let { pred(it) } ?: false
+    }
+
+    private fun predicateMatches(name: String, selector: Any?): Boolean {
+        val n = name.uppercase()
+        val c = when (selector) {
+            is Double -> selector
+            is Boolean -> if (selector) 0.0 else 1.0
+            else -> null
+        }
+        return when (n) {
+            "EQUAL" -> c?.let { it == 0.0 } ?: false
+            "NOTEQUAL" -> c?.let { it != 0.0 } ?: false
+            "LESS" -> c?.let { it < 0.0 } ?: false
+            "GREATER" -> c?.let { it > 0.0 } ?: false
+            "LESSEQ" -> c?.let { it <= 0.0 } ?: false
+            "GREATEREQ" -> c?.let { it >= 0.0 } ?: false
+            "OK" -> selector is Boolean && selector
+            "ERR" -> selector is Boolean && !selector
+            else -> false
+        }
+    }
+
+    private fun isPredicateTrue(expr: Expression): Boolean {
+        val v = evaluate(expr)
+        return when (v) {
+            is Boolean -> v
+            is Double -> v != 0.0
+            else -> false
+        }
     }
 }

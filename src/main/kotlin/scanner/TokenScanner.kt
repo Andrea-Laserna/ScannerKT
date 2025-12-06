@@ -51,22 +51,22 @@ data class TokenScanner(val source: String) {
     }
 
     private fun comment() {
-        // Multi-line comment (##[ ... ##])
+        // Multi-line comment (##[ ... ]##)
         if(nextIs('#')) {
             // Check for [ to confirm start of multi-line block
             if (nextIs('[')) {
-                // Keep consuming until we find the closing ##]
-                while (current + 2 < source.length && !(source[current] == '#' && source[current+1] == '#' && source[current+2] == ']')) {
+                // Keep consuming until we find the closing ]##
+                while (current + 2 < source.length && !(source[current] == ']' && source[current+1] == '#' && source[current+2] == '#')) {
                     if (showCurrent() == '\n') line++
                     advance()
                 }
 
                 if (current + 2 >= source.length) {
-                    Bridge.error(line, "Unterminated multi-line comment. Expected '##]'.")
+                    Bridge.error(line, "Unterminated multi-line comment. Expected ']##'.")
                     return
                 }
 
-                // Consume the closing ##]
+                // Consume the closing ]##
                 advance()
                 advance()
                 advance()
@@ -125,11 +125,9 @@ data class TokenScanner(val source: String) {
         while(showCurrent().isLetter() || showCurrent().isDigit() || showCurrent() == '_') advance()
         val text = source.substring(start, current)
 
-        val type = if (Keywords.keywords.containsKey(text)) {
-            Keywords.keywords[text] as TokenType
-        } else {
-            TokenType.IDENTIFIER
-        }
+        // Case-insensitive keyword matching: normalize to UPPERCASE for lookup
+        val key = text.uppercase()
+        val type = Keywords.keywords[key] ?: TokenType.IDENTIFIER
 
         val literal = when (type) {
             TokenType.TRUE -> true
@@ -169,6 +167,8 @@ data class TokenScanner(val source: String) {
             '=' -> addToken(if(nextIs('=')) TokenType.EQUAL_EQUAL else TokenType.EQUAL, null)
             '<' -> addToken(if(nextIs('=')) TokenType.LESS_EQUAL else TokenType.LESS, null)
             '>' -> addToken(if(nextIs('=')) TokenType.GREATER_EQUAL else TokenType.GREATER, null)
+            '&' -> addToken(if(nextIs('&')) TokenType.AND_AND else TokenType.AMPERSAND, null)
+            '|' -> addToken(if(nextIs('|')) TokenType.OR_OR else TokenType.PIPE, null)
             
             // insert longer lexemes: division, new lines, white space
             ' ', '\r', '\t' -> { /* padayun lang */ }

@@ -44,4 +44,21 @@ sealed class Expression {
     data class Assignment(val name: Token, val value: Expression) : Expression() {
         override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitAssignmentExpression(this)
     }
+
+    // Concatenation of multiple expressions (for string building via CONCAT)
+    data class Concat(val parts: List<Expression>) : Expression() {
+        // Interpreter's ExpressionVisitor doesn't yet define a dedicated Concat handler.
+        // To keep compilation working, route to a literal visit (no-op semantics for now).
+            override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitConcatExpression(this)
+    }
+
+    // Predicate call like: LESS <expr>, OK <res>, NOTEQUAL <expr>
+    data class PredCall(val name: Token, val args: List<Expression>) : Expression() {
+           override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitPredCallExpression(this)
+    }
+
+    // Operation/intrinsic call: ADD_OP a, b | INC x, 1 | CMP a, b
+    data class OpCall(val name: Token, val args: List<Expression>) : Expression() {
+            override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitOpCallExpression(this)
+    }
 }
