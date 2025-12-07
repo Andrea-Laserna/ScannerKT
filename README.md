@@ -3,6 +3,9 @@ BRIDGE LANGUAGE MANUAL — Version 1.0
 The Official Programming Language Specification for Bridge
 
 Table of Contents
+
+Abstract
+
 Introduction
 
 
@@ -21,7 +24,7 @@ Expressions & Operators
 Input & Output
 
 
-Conditional Statements (when, ->, else)
+Conditional Statements (WHEN, ->, DEFAULT)
 
 
 Loops (loop)
@@ -47,61 +50,62 @@ Appendix B — Reserved Keywords
 
 
 1. Introduction
-Bridge is a general-purpose, flexible, modern programming language designed to combine:
-readable syntax
+Bridge is a high-level, assembly-inspired language for learners and systems-minded developers. It emphasizes explicit data flow and predictable control constructs while keeping syntax approachable.
 
+What it's about:
+- Assembly flavor: operations are explicit (e.g., `MOVE`, `ADD`, `CMP`), control is driven by predicates, and loops use a tail predicate like a do–while.
+- Clarity-first: one unified loop (`LOOP`), one conditional form (`WHEN` + `DEFAULT`), and explicit mutation (`INC`/`DEC`, BYREF) keep programs readable and debuggable.
+- Practical effects: functions can be pure or impure; BYREF enables in-place updates where performance or simplicity matters.
 
-expressive control flow
+Purpose:
+- Teach core computing ideas (data movement, comparison, branching) without low-level ceremony.
+- Provide a bridge between imperative/assembly thinking and modern structured programming.
 
+Strengths:
+- Predictable control flow via `WHEN` predicates and `LOOP` tail conditions.
+- Simple, expressive function model with `FUNC`/`RET`/`CALL` and `BYREF`.
+- Assembly-style string ops (LEN/CHAR/SUBSTR/SETCHAR) for hands-on manipulation.
+- Tagged-result error handling integrates naturally with `WHEN`.
 
-hybrid typing (implicit & explicit)
+Weak points:
+- Minimal type system (INT/STR/CMP) by design; advanced types are out of scope.
+- No implicit exceptions; error handling prefers explicit results.
+- Arrays/maps are conceptual; rich collections depend on runtime support.
 
+Use cases:
+- Teaching and labs focused on control flow, functions, and data movement.
+- Algorithm practice (searching, numeric sequences, parsing) with transparent states.
+- Scripting small CLI tasks where predictability and simplicity matter.
 
-simplified error handling
-
-
-unified looping syntax
-
-
-functional-style inline rules (condition -> result)
-
-
-Bridge aims to feel familiar to Python, JavaScript, C, and modern DSLs while offering unique language constructs such as:
-when conditional blocks
-
-
-inline match-like expressions
-
-
-triple-mode loops (while, for, do-while) via loop:
-
-
-inline or block-based catch handlers
-
+Design highlights:
+- `WHEN` with `DEFAULT` as the single conditional construct.
+- `LOOP { ... } tail-predicate` unifies while/for/do–while.
+- Functions: `FUNC`, `RET`, `CALL`, with `BYREF` for in-place updates.
+- Explicit ops: `ADD/SUB/MUL/DIV/MOD/EXP`, `INC/DEC`, `CMP` with predicates `EQUAL/LESS/GREATER/...`.
 
 Bridge uses curly braces { } for all blocks.
+Abstract
+Bridge is a concise, assembly-inspired language that centers on explicit data movement (`MOVE`), predicate-driven control (`WHEN`, `CMP`), and a unified looping model (`LOOP` with tail predicates). It balances readability with low-level clarity: arithmetic and string operations are explicit; functions support pass-by-value and `BYREF` for in-place mutation; error handling favors tagged results that compose with `WHEN`. The language targets learning environments and small utilities where predictable semantics, minimal surface area, and approachable syntax are paramount.
 
 2. Language Overview
-Bridge code example:
-RES_INT secret
-MOVE secret, RAND 1 to 100
-
-# Declare CompareResult outside for use in the do-while tail
-RES_CMP c
-
-LOOP {
-    RES_INT guess
-    MOVE guess, ASK "Guess:"
-
-    # Compute CompareResult once per iteration
-    MOVE c, CMP guess, secret
-
-    WHEN c {
-        EQUAL   -> print "Correct!"
-        LESS    -> { print "Too low!" }
-        GREATER -> { print "Too high!" }
+Bridge code example (from `examples/bridge_fibonacci.txt` style):
+FUNC fib (INT n) {
+    WHEN LESS CMP n, 2 {
+        EQUAL   -> RET n
+        DEFAULT -> RET ADD fib(SUB n, 1), fib(SUB n, 2)
     }
-} NOTEQUAL c
+}
+
+RES_INT i
+MOVE i, 0
+RES_INT end
+MOVE end, 8
+LOOP {
+    WHEN LESS CMP i, end {
+        PRINT fib(i)
+        INC i, 1
+    }
+} LESS CMP i, end
 
 
 3. Lexical Structure
@@ -157,27 +161,50 @@ PRINT "Hello"
 String Concatenation
 # Build: greeting + ", " + name + "!"
 MOVE msg, CONCAT greeting, CONCAT ", ", CONCAT name, "!"
-print msg
+PRINT msg
 
-# If your print supports expressions directly, you can also do:
-# print CONCAT greeting, CONCAT ", ", CONCAT name, "!"
+# If your PRINT supports expressions directly, you can also do:
+# PRINT CONCAT greeting, CONCAT ", ", CONCAT name, "!"
+
+String Operations (assembly-style)
+- LEN s: length of string `s`
+- CHAR s, i: character at index `i`
+- SUBSTR s, start, end: substring from `start` (inclusive) to `end` (exclusive)
+- SETCHAR s, i, ch: new string with character at `i` replaced by `ch`
+
+Example: turn "string" into "skring"
+RES_STR s
+MOVE s, "string"
+RES_INT n
+MOVE n, LEN s
+RES_INT i
+MOVE i, 0
+LOOP {
+    WHEN LESS CMP i, n {
+        RES_STR ch
+        MOVE ch, CHAR s, i
+        WHEN EQUAL CMP i, 0 {
+            EQUAL   -> MOVE s, SETCHAR s, 0, "s"
+            DEFAULT -> MOVE s, SETCHAR s, i, ch
+        }
+        INC i, 1
+    }
+} LESS CMP i, n
+PRINT s
 
 7. Conditional Statements
-Bridge uses when: blocks.
-WHEN (condition) {
-    condition_result1 -> action1
-    condition_result2 -> action2
+Bridge uses WHEN blocks with optional DEFAULT.
+WHEN selector {
+    predicate -> action
+    ...
+    DEFAULT -> action
 }
 Example:
 MOVE c, CMP x, 10
 WHEN c {
-    EQUAL c -> print {
-"Ten"
-MOVE x, 7
-			}
-    LESS c -> print "Small"
-	// Else
-print "Large"
+    EQUAL   -> PRINT "Ten"
+    LESS    -> PRINT "Small"
+    DEFAULT -> PRINT "Large"
 }
 
 8. Loops (loop:)
@@ -208,7 +235,7 @@ Additional Control Flow and Functions (Lox-style subset for lab):
 - logicOr: `logicAnd ( 'or' logicAnd )*` (also supports `||`)
 - logicAnd: `equality ( 'and' equality )*` (also supports `&&`)
 
-Examples available in `examples/` directory: `fibonacci.txt`, `closures.txt`.
+Examples available in `examples/` directory: `bridge_fibonacci.txt`, `bridge_closures.txt`, `string_loop.txt`.
 
 
 LOOP (condition) {
@@ -230,15 +257,15 @@ LOOP NOTEQUAL c {
     MOVE c, CMP guess, secret
 
     WHEN c {
-        EQUAL   -> print "Correct!"
-        LESS    -> { print "Too low!" }
-        GREATER -> { print "Too high!" }
+        EQUAL   -> PRINT "Correct!"
+        LESS    -> { PRINT "Too low!" }
+        GREATER -> { PRINT "Too high!" }
     }
 } 
 
 
 
-MOV c, CMP guess, secret
+MOVE c, CMP guess, secret
 LOOP NOTEQUAL c {
     MOVE guess, ASK "Guess:"
 }
@@ -302,8 +329,8 @@ LOOP {
     # Guard the body so the first iteration is skipped if i >= end
     WHEN LESS CMP i, end {
         # ---- body ----
-        print "i:"
-        print i
+        PRINT "i:"
+        PRINT i
 
         # increment
         INC i, step
@@ -317,8 +344,8 @@ RES_INT i2
 MOVE i2, 0
 LOOP {
     WHEN LEQ CMP i2, 10 {
-        print "i2:"
-        print i2
+        PRINT "i2:"
+        PRINT i2
         INC i2, 1
     }
 } LEQ CMP i2, 10
@@ -329,8 +356,8 @@ RES_INT j
 MOVE j, 10
 LOOP {
     WHEN GREATER CMP j, 0 {
-        print "j:"
-        print j
+        PRINT "j:"
+        PRINT j
         DEC j, 1
     }
 } GREATER CMP j, 0
@@ -365,9 +392,9 @@ LOOP {
     MOVE c, CMP guess, secret
 
     WHEN c {
-        EQUAL   -> print "Correct!"
-        LESS    -> { print "Too low!" }
-        GREATER -> { print "Too high!" }
+        EQUAL   -> PRINT "Correct!"
+        LESS    -> { PRINT "Too low!" }
+        GREATER -> { PRINT "Too high!" }
     }
 } NOTEQUAL c
 
@@ -432,8 +459,8 @@ Sample
 # Functions-only model with pass-by-value (default) and pass-by-reference (BYREF)
 
 # 1) Pass-by-value, pure computation
-FUNC add (INT a, INT b) RET INT {
-    RETURN ADD a, b
+FUNC add (INT a, INT b) {
+    RET ADD a, b
 }
 
 RES_INT x
@@ -442,28 +469,28 @@ RES_INT s
 MOVE x, 2
 MOVE y, 3
 MOVE s, add(x, y)
-print s  # 5
+PRINT s  # 5
 
 # 2) Compare (three-way), pass-by-value inputs, returns a CMP result
-FUNC compare (INT lhs, INT rhs) RET CMP {
-    RETURN CMP lhs, rhs
+FUNC compare (INT lhs, INT rhs) {
+    RET CMP lhs, rhs
 }
 
 RES_CMP c
 MOVE c, compare(s, 5)
 WHEN c {
-    LESS    -> print "sum < 5"
-    EQUAL   -> print "sum == 5"
-    GREATER -> print "sum > 5"
+    LESS    -> PRINT "sum < 5"
+    EQUAL   -> PRINT "sum == 5"
+    GREATER -> PRINT "sum > 5"
 }
 
 # 3) In-place swap via BYREF
-FUNC swap (BYREF INT a, BYREF INT b) RET VOID {
+FUNC swap (BYREF INT a, BYREF INT b) {
     RES_INT tmp
     MOVE tmp, a
     MOVE a, b
     MOVE b, tmp
-    RETURN VOID
+    RET
 }
 
 RES_INT a
@@ -471,47 +498,47 @@ RES_INT b
 MOVE a, 10
 MOVE b, 20
 MOVE s, add(a, b)
-print s          # 30
+PRINT s          # 30
 MOVE s, add(a, b)
-CALL swap(a, b)  # function call is still an expression form; result ignored
-print a          # 20
-print b          # 10
+CALL swap(a, b)
+PRINT a          # 20
+PRINT b          # 10
 
 # 4) In-place increment via BYREF (uses INC)
-FUNC inc_inplace (BYREF INT x) RET VOID {
+FUNC inc_inplace (BYREF INT x) {
     INC x, 1
-    RETURN VOID
+    RET
 }
 
 RES_INT i
 MOVE i, 41
 CALL inc_inplace(i)
-print i          # 42
+PRINT i          # 42
 
 # 5) Append into an array via BYREF
 # Assume ARR INT represents a resizable array of ints.
-FUNC push (BYREF ARR INT xs, INT v) RET VOID {
+FUNC push (BYREF ARR INT xs, INT v) {
     # Implementation detail depends on runtime; conceptually:
     # xs.append(v)
     # For assembly flavor, imagine storing at xs[LEN xs] and bumping length.
-    RETURN VOID
+    RET
 }
 
 # 6) Multiple outputs via tuple return (no BYREF outputs)
-FUNC split2 (STR s) RET (STR head, STR tail) {
+FUNC split2 (STR s) {
     RES_INT pos
     MOVE pos, FIND s, " "
     WHEN CMP pos, -1 {
-        EQUAL    -> RETURN (s, "")
-        NOTEQUAL -> RETURN (SUBSTR s, 0, pos, SUBSTR s, ADD pos, 1, LEN s)
+        EQUAL    -> RET (s, "")
+        NOTEQUAL -> RET (SUBSTR s, 0, pos, SUBSTR s, ADD pos, 1, LEN s)
     }
 }
 
 RES_STR h
 RES_STR t
 MOVE (h, t), split2("foo bar")
-print h          # "foo"
-print t          # "bar"
+PRINT h          # "foo"
+PRINT t          # "bar"
 
 # 7) For-loop using compare and INC (functions-only worldview)
 RES_INT end
@@ -523,7 +550,7 @@ LOOP {
         # body
         RES_INT r
         MOVE r, add(i, 10)
-        print r
+        PRINT r
 
         # increment via BYREF function
         CALL inc_inplace(i)
@@ -587,8 +614,8 @@ FUNC parse_int (STR s) RET RES<INT> {
     RES_CMP c
     MOVE c, PARSE s, n
     WHEN c {
-        EQUAL    -> RETURN OK n
-        NOTEQUAL -> RETURN ERR "invalid_int"
+        EQUAL    -> RET OK n
+        NOTEQUAL -> RET ERR "invalid_int"
     }
 }
 ```
@@ -602,13 +629,13 @@ WHEN res {
     OK  -> {
         RES_INT x
         MOVE x, VALUE res
-        print x
+        PRINT x
     }
     ERR -> {
         RES_STR code
         MOVE code, ERROR res
-        print "parse failed:"
-        print code
+        PRINT "parse failed:"
+        PRINT code
     }
 }
 ```
@@ -624,15 +651,15 @@ Example:
 FUNC read_file (STR path, BYREF STR out) RET INT {
     # 0 on success, non-zero error codes
     # On success, MOVE out, contents
-    RETURN 0
+    RET 0
 }
 
 RES_INT status
 RES_STR text
 MOVE status, read_file("note.txt", text)
 WHEN CMP status, 0 {
-    EQUAL    -> print text
-    NOTEQUAL -> print "error reading file"
+    EQUAL    -> PRINT text
+    NOTEQUAL -> PRINT "error reading file"
 }
 ```
 
@@ -742,7 +769,7 @@ TRY {
         OK  -> {
             RES_INT v
             MOVE v, VALUE res2
-            print v
+            PRINT v
         }
         ERR -> {
             # raise error to outer TRY/CATCH
@@ -753,11 +780,18 @@ TRY {
 CATCH (ERR e) {
     RES_STR code
     MOVE code, ERROR e
-    print "Caught error:"
-    print code
+    PRINT "Caught error:"
+    PRINT code
 }
 FINALLY {
-    print "cleanup complete"
+    PRINT "cleanup complete"
 }
+
+14. Appendix B — Reserved Keywords
+WHEN, DEFAULT, LOOP, FUNC, RET, CALL, MOVE, PRINT, ASK,
+RES_INT, RES_STR, RES_CMP,
+ADD, SUB, MUL, DIV, MOD, EXP, INC, DEC,
+CMP, EQUAL, NOTEQUAL, LESS, LESSEQ, GREATER, GREATEREQ,
+LEN, CHAR, SUBSTR, SETCHAR
 
 
