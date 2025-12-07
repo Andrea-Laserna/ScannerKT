@@ -1,0 +1,15 @@
+# Bridge-style closures using FUNC/RET/CALL
+FUNC makePrinter(prefix) {
+    FUNC printIt(message) {
+        PRINT CONCAT prefix, ": ", message
+    }
+    RET printIt
+}
+
+RES_STR errorPrinter
+MOVE errorPrinter, CALL makePrinter("ERROR")
+RES_STR infoPrinter
+MOVE infoPrinter, CALL makePrinter("INFO")
+
+CALL errorPrinter("Something failed")
+CALL infoPrinter("All good")

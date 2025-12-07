@@ -30,10 +30,32 @@ enum class TokenType {
     BOOL, // Type keyword for boolean
 
     // Keywords/Control Flow/Statements
-    IMPORT, WHEN, ELSE, LOOP, TRY, CATCH, RETURN, 
-    VAR, ASK, TO, PRINT, // PRINT, VAR, ASK are now explicitly defined
-    
-    // Other Keywords (from your Keywords.kt snippet)
+    IMPORT, WHEN, ELSE, LOOP, TRY, CATCH, FINALLY, RETURN,
+    VAR, ASK, TO, PRINT,
+
+    // Functions & declarations
+    FUNC, RET, BYREF, CALL, VOID,
+
+    // Data types and containers
+    INT_TYPE, STR_TYPE, FLOAT_TYPE, BOOL_TYPE, CMP_TYPE,
+    RES_INT, RES_STR, RES_FLOAT, RES_BOOL, RES_CMP,
+    ARR, MAP,
+
+    // Operations and intrinsics
+    MOVE, ADD_OP, SUB_OP, MUL_OP, DIV_OP, MOD_OP, EXP_OP,
+    // String ops
+    LEN, CHAR, SETCHAR, SUBSTR,
+    CONCAT,
+    INC, DEC, RAND, CMP, 
+
+    // Compare predicates (enum-like keywords)
+    EQUAL_KW, NOTEQUAL_KW, LESS_KW, GREATER_KW, LESSEQ_KW, GREATEREQ_KW,
+
+    // Result-tagged error handling
+    RES, OK, ERR, VALUE, ERROR,
+    RAISE,
+
+    // Other Keywords (compat / reserved)
     AND, CLASS, FOR, FUN, IF, OR, SUPER, NOT, WHILE,
 
     // End of File

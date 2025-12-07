@@ -1,0 +1,19 @@
+# Bridge assembly-style string loop: "string" -> "skring"
+RES_STR src
+MOVE src, "string"
+RES_STR dst
+MOVE dst, ""
+RES_INT i
+MOVE i, 0
+RES_CMP c
+
+LOOP {
+    WHEN CMP i, 1 {
+        EQUAL -> MOVE dst, CONCAT dst, "k"
+        ELSE  -> MOVE dst, CONCAT dst, CHAR src, i
+    }
+    INC i, 1
+    MOVE c, CMP i, LEN src
+} LESS c
+
+PRINT dst
