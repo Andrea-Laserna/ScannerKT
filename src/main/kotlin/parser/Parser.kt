@@ -196,7 +196,7 @@ class Parser(val tokens: TokenStream) {
         val condition = expr()
         consume(TokenType.RIGHT_PAREN, "Expect ')' after if condition.")
         val thenBranch = statement()
-        val elseBranch = if (match(TokenType.ELSE)) statement() else null
+        val elseBranch = if (match(TokenType.DEFAULT)) statement() else null
         return Statement.If(condition, thenBranch, elseBranch)
     }
 
@@ -295,9 +295,9 @@ class Parser(val tokens: TokenStream) {
         var elseBranch: List<Statement>? = null
 
         while (tokens.nextToken?.type != TokenType.RIGHT_BRACE && tokens.nextToken?.type != TokenType.EOF) {
-            // ELSE branch
-            if (match(TokenType.ELSE)) {
-                consume(TokenType.ARROW, "Expect '->' after ELSE.")
+            // DEFAULT branch
+            if (match(TokenType.DEFAULT)) {
+                consume(TokenType.ARROW, "Expect '->' after DEFAULT.")
                 elseBranch = parseActionBlockOrSingle()
                 continue
             }

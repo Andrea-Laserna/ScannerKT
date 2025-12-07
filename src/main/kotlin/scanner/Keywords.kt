@@ -9,7 +9,7 @@ object Keywords{
         // Core control flow
         "IMPORT" to TokenType.IMPORT,
         "WHEN" to TokenType.WHEN,
-        "ELSE" to TokenType.ELSE,
+        "DEFAULT" to TokenType.DEFAULT,
         "LOOP" to TokenType.LOOP,
         "TRY" to TokenType.TRY,
         "CATCH" to TokenType.CATCH,

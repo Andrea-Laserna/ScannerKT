@@ -93,7 +93,7 @@ class AstPrinter {
                     print(") ")
                 }
                 if (statement.elseBranch != null) {
-                    print("(else -> ")
+                    print("(default -> ")
                     statement.elseBranch.forEach { act -> printStatement(act) }
                     print(") ")
                 }

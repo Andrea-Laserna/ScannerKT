@@ -10,7 +10,7 @@ RES_CMP c
 LOOP {
     WHEN CMP i, 1 {
         EQUAL -> MOVE dst, CONCAT dst, "k"
-        ELSE  -> MOVE dst, CONCAT dst, CHAR src, i
+        DEFAULT  -> MOVE dst, CONCAT dst, CHAR src, i
     }
     INC i, 1
     MOVE c, CMP i, LEN src

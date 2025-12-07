@@ -4,7 +4,7 @@ FUNC fibonacci(n) {
     MOVE c, CMP n, 1
     WHEN c {
         LESSEQ -> RET n
-        ELSE -> RET CALL fibonacci(n - 1) + CALL fibonacci(n - 2)
+        DEFAULT -> RET CALL fibonacci(n - 1) + CALL fibonacci(n - 2)
     }
 }
 

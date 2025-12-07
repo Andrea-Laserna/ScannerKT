@@ -30,7 +30,7 @@ enum class TokenType {
     BOOL, // Type keyword for boolean
 
     // Keywords/Control Flow/Statements
-    IMPORT, WHEN, ELSE, LOOP, TRY, CATCH, FINALLY, RETURN,
+    IMPORT, WHEN, DEFAULT, LOOP, TRY, CATCH, FINALLY, RETURN,
     VAR, ASK, TO, PRINT,
 
     // Functions & declarations
