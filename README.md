@@ -144,7 +144,7 @@ ADD, SUB, MUL, DIV, MOD, EXP
 ==, !=, <, <=, >, >=
 EQUAL, NOTEQUAL, LESS, GREATER, LESSEQ, GREATEREQ
 
-MOVE c, CMP.EQUAL a, b
+MOVE c, CMP a, b
 5.3 Logical
 &&, ||, !
 
@@ -154,7 +154,7 @@ condition -> expression
 6. Input & Output
 6.1 Input
 RES_INT guess
-MOVE guess, ASK "Guess:"
+ASK guess "Guess:"
 6.2 Output
 PRINT "Hello"
 
@@ -173,24 +173,24 @@ String Operations (assembly-style)
 - SETCHAR s, i, ch: new string with character at `i` replaced by `ch`
 
 Example: turn "string" into "skring"
-RES_STR s
-MOVE s, "string"
-RES_INT n
-MOVE n, LEN s
+RES_STR src
+MOVE src, "string"
+RES_STR dst
+MOVE dst, ""
 RES_INT i
 MOVE i, 0
+RES_CMP c
+
 LOOP {
-    WHEN LESS CMP i, n {
-        RES_STR ch
-        MOVE ch, CHAR s, i
-        WHEN EQUAL CMP i, 0 {
-            EQUAL   -> MOVE s, SETCHAR s, 0, "s"
-            DEFAULT -> MOVE s, SETCHAR s, i, ch
-        }
-        INC i, 1
+    WHEN CMP i, 1 {
+        EQUAL   -> MOVE dst, CONCAT dst, "k"
+        DEFAULT -> MOVE dst, CONCAT dst, CHAR src, i
     }
-} LESS CMP i, n
-PRINT s
+    INC i, 1
+    MOVE c, CMP i, LEN src
+} LESS c
+
+PRINT dst
 
 7. Conditional Statements
 Bridge uses WHEN blocks with optional DEFAULT.
@@ -244,14 +244,14 @@ LOOP (condition) {
 Example
 
 RES_INT secret
-MOVE secret, RAND 1 to 100
+MOVE secret, RAND 1, 100
 
 # Declare CompareResult outside for use in the do-while tail
 RES_CMP c
 
-LOOP NOTEQUAL c {
+LOOP {
     RES_INT guess
-    MOVE guess, ASK "Guess:"
+    ASK guess "Guess:"
 
     # Compute CompareResult once per iteration
     MOVE c, CMP guess, secret
@@ -261,14 +261,9 @@ LOOP NOTEQUAL c {
         LESS    -> { PRINT "Too low!" }
         GREATER -> { PRINT "Too high!" }
     }
-} 
+} NOTEQUAL c
 
 
-
-MOVE c, CMP guess, secret
-LOOP NOTEQUAL c {
-    MOVE guess, ASK "Guess:"
-}
 
 8.2 For Loop
 LOOP (condition) {
@@ -281,34 +276,21 @@ exit condition
 	increment
 }
 Example
-loop:
-(i = 0, i < 10, i = i + 1) {
-    print i
-}
+RES_INT i
+MOVE i, 0
+RES_INT end
+MOVE end, 10
+RES_CMP c
 
-LOOP CMP i, 10 {
-	cmp condition result
-
-# exit condition
-CMP.GREATER -> 
-
-  	body
-
-	increment
-}
-
-; Condition Check (i < 10)
-   cmp ecx, ebx
-   jge loop_exit   ; If ecx >= ebx, jump to loop_exit
-
-   ; Loop Body (code to be executed)
-   ; ... perform operations ...
-
-   ; Increment
-   inc ecx         ; Increment loop counter (i++)
-
-   ; Unconditional Jump
-   jmp loop_start
+LOOP {
+    MOVE c, CMP i, end
+    WHEN c {
+        LESS -> {
+            PRINT i
+            INC i, 1
+        }
+    }
+} LESS c
 
 
 
@@ -339,32 +321,36 @@ LOOP {
 
 
 # Variant: for (i = 0; i <= 10; i++)
-# Change both the guard and tail predicate to LEQ (less-or-equal).
+# Change both the guard and tail predicate to LESSEQ (less-or-equal).
 RES_INT i2
 MOVE i2, 0
 LOOP {
-    WHEN LEQ CMP i2, 10 {
-        PRINT "i2:"
-        PRINT i2
-        INC i2, 1
+    WHEN CMP i2, 10 {
+        LESSEQ -> {
+            PRINT "i2:"
+            PRINT i2
+            INC i2, 1
+        }
     }
-} LEQ CMP i2, 10
+} LESSEQ CMP i2, 10
 
 
 # Variant: descending loop: for (i = 10; i > 0; i--)
 RES_INT j
 MOVE j, 10
 LOOP {
-    WHEN GREATER CMP j, 0 {
-        PRINT "j:"
-        PRINT j
-        DEC j, 1
+    WHEN CMP j, 0 {
+        GREATER -> {
+            PRINT "j:"
+            PRINT j
+            DEC j, 1
+        }
     }
 } GREATER CMP j, 0
 
 
 # Notes:
-# - CMP is pure; predicates (LESS, LEQ, GREATER, NOTEQUAL, etc.) test its CompareResult.
+# - CMP is pure; predicates (LESS, LESSEQ, GREATER, NOTEQUAL, etc.) test its CompareResult.
 # - The WHEN guard prevents executing the body when the initial condition is already false,
 #   which matches for-loop semantics despite the do-while structure.
 # - Tail predicate repeats while the loop condition holds.
@@ -379,14 +365,14 @@ LOOP {
 } condition
 Example
 RES_INT secret
-MOVE secret, RAND 1 to 100
+MOVE secret, RAND 1, 100
 
 # Declare CompareResult outside for use in the do-while tail
 RES_CMP c
 
 LOOP {
     RES_INT guess
-    MOVE guess, ASK "Guess:"
+    ASK guess "Guess:"
 
     # Compute CompareResult once per iteration
     MOVE c, CMP guess, secret
@@ -801,11 +787,11 @@ LEN, CHAR, SUBSTR, SETCHAR
 Bridge supports both symbolic and word forms for logical operators:
 
 - Symbolic: `&&`, `||`, `!`
-- Word forms: `and`, `or`, `not` (word forms map to same semantics)
+- Word forms: `and`, `or` (negation is `!`)
 
 Precedence and behavior:
 
-- Highest: `!` / `not` (negation)
+- Highest: `!` (negation)
 - Next: `&&` / `and`
 - Lowest: `||` / `or`
 - Evaluation is left-to-right and short-circuiting:
@@ -836,13 +822,13 @@ Combining with predicates and tagged results:
 ```bridge
 # Predicates (CMP) and RES predicates can be combined with logical operators
 MOVE cmpRes, CMP a, b
-WHEN ( LESS cmpRes ) && ( someFlag ) {
-        PRINT "less and flag true"
+IF ( (LESS cmpRes) && (someFlag) ) {
+    PRINT "less and flag true"
 }
 
 MOVE res, parse_int("123")
-WHEN OK res || ( someFallbackCondition ) {
-        # If OK res is true, fallback is not evaluated
+IF ( (OK res) || (someFallbackCondition) ) {
+    # If OK res is true, fallback is not evaluated
 }
 ```
 

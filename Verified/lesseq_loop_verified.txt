@@ -1,0 +1,11 @@
+RES_INT i2
+MOVE i2, 0
+
+LOOP {
+    WHEN CMP i2, 10 {
+        LESSEQ -> {
+            PRINT i2
+            INC i2, 1
+        }
+    }
+} LESSEQ CMP i2, 10

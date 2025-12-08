@@ -1,0 +1,26 @@
+RES_INT x
+RES_CMP c
+
+MOVE x, 10
+MOVE c, CMP x, 10
+WHEN c {
+    EQUAL   -> PRINT "Ten"
+    LESS    -> PRINT "Small"
+    GREATER -> PRINT "Large"
+}
+
+MOVE x, 9
+MOVE c, CMP x, 10
+WHEN c {
+    EQUAL   -> PRINT "Ten"
+    LESS    -> PRINT "Small"
+    GREATER -> PRINT "Large"
+}
+
+MOVE x, 11
+MOVE c, CMP x, 10
+WHEN c {
+    EQUAL   -> PRINT "Ten"
+    LESS    -> PRINT "Small"
+    GREATER -> PRINT "Large"
+}

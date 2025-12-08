@@ -1,0 +1,11 @@
+RES_INT j
+MOVE j, 10
+
+LOOP {
+    WHEN CMP j, 0 {
+        GREATER -> {
+            PRINT j
+            DEC j, 1
+        }
+    }
+} GREATER CMP j, 0

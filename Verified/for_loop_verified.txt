@@ -1,0 +1,18 @@
+RES_INT i
+MOVE i, 0
+RES_INT end
+MOVE end, 10
+
+RES_CMP c
+
+LOOP {
+    MOVE c, CMP i, end
+
+    WHEN c {
+        LESS -> {
+            PRINT i
+            INC i, 1
+        }
+    }
+    
+} LESS c
