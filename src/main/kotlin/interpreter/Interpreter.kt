@@ -111,12 +111,26 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
     override fun visitAskStatement(stmt: Statement.Ask) {
         // Evaluate the prompt expression (which should be a string literal)
         val prompt = stringify(evaluate(stmt.prompt))
-        
-        // Note: For a true console app, you would use readLine(). 
-        // Here, we simulate the action and define the variable as null 
-        // or a placeholder until input is handled externally.
-        println("--- ASK: $prompt (Storing result in: ${stmt.name.lexeme}) ---")
-        environment.define(stmt.name.lexeme, null) // Initialize the variable in the environment
+        // Print the prompt and read a line from the console
+        // Keep prompt formatting consistent: do not append newline so user can type on same line
+        print(prompt)
+        // Flush is not necessary in simple console apps, but keep it explicit
+        System.out.flush()
+        val input = kotlin.io.readLine()
+
+        // Try to parse numeric input to Double; otherwise keep as String. Null if user cancelled/EOF.
+        val value: Any? = when {
+            input == null -> null
+            input.toDoubleOrNull() != null -> input.toDouble()
+            else -> input
+        }
+
+        // Store the value in the current environment
+        try {
+            environment.assign(stmt.name, value)
+        } catch (e: RuntimeError) {
+            environment.define(stmt.name.lexeme, value)
+        }
     }
 
     override fun visitReserveStatement(stmt: Statement.Reserve) {

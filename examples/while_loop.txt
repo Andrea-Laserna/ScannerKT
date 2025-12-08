@@ -1,0 +1,17 @@
+RES_CMP c
+RES_INT secret
+MOVE secret, RAND 1, 100
+
+LOOP {
+    RES_INT guess
+    ASK guess "Guess:"
+
+    # compute compare result once per iteration
+    MOVE c, CMP guess, secret
+
+    WHEN c {
+        EQUAL   -> PRINT "Correct!"
+        LESS    -> PRINT "Too low!"
+        GREATER -> PRINT "Too high!"
+    }
+} NOTEQUAL c
