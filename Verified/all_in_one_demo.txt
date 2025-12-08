@@ -1,0 +1,170 @@
+# All-in-one Bridge Language Demo
+
+# --- Variables & Typing ---
+RES_INT a
+RES_INT b
+RES_STR s
+RES_FLOAT f
+RES_BOOL flag
+RES_CMP c
+
+MOVE a, 7
+MOVE b, 3
+MOVE s, "Bridge"
+MOVE f, 2.5
+MOVE flag, true
+
+PRINT "Vars: a="
+PRINT a
+PRINT ", b="
+PRINT b
+PRINT ", s="
+PRINT s
+PRINT ", f="
+PRINT f
+PRINT ", flag="
+PRINT flag
+
+# --- Expressions & Operators ---
+RES_INT sum
+MOVE sum, a + b
+RES_INT diff
+MOVE diff, a - b
+RES_INT prod
+MOVE prod, a * b
+RES_FLOAT quot
+MOVE quot, a / b
+RES_FLOAT powv
+MOVE powv, a ^ b
+
+PRINT "Expr: sum="
+PRINT sum
+PRINT ", diff="
+PRINT diff
+PRINT ", prod="
+PRINT prod
+PRINT ", quot="
+PRINT quot
+PRINT ", pow="
+PRINT powv
+
+# Intrinsics
+RES_FLOAT addv
+MOVE addv, ADD a, b
+RES_FLOAT subv
+MOVE subv, SUB a, b
+RES_FLOAT mulv
+MOVE mulv, MUL a, b
+RES_FLOAT divv
+MOVE divv, DIV a, b
+RES_FLOAT modv
+MOVE modv, MOD a, b
+RES_FLOAT expv
+MOVE expv, EXP a, b
+
+PRINT "Ops: ADD/SUB/MUL/DIV/MOD/EXP="
+PRINT addv
+PRINT ", "
+PRINT subv
+PRINT ", "
+PRINT mulv
+PRINT ", "
+PRINT divv
+PRINT ", "
+PRINT modv
+PRINT ", "
+PRINT expv
+
+# String ops & CONCAT
+RES_STR msg
+MOVE msg, CONCAT "Hello ", CONCAT s, "!"
+PRINT msg
+RES_INT slen
+MOVE slen, LEN s
+PRINT "LEN(s)="
+PRINT slen
+PRINT ", CHAR(s,1)="
+PRINT CHAR s, 1
+
+# --- Input & Output ---
+PRINT "Enter your name: "
+RES_STR name
+ASK name ""
+PRINT "Hi, "
+PRINT name
+
+# --- Conditional Statements (WHEN) ---
+MOVE c, CMP a, b
+WHEN c {
+    LESS    -> PRINT "a < b"
+    EQUAL   -> PRINT "a == b"
+    GREATER -> PRINT "a > b"
+}
+
+# --- Loops ---
+# for-like: print i=0..5
+RES_INT i
+MOVE i, 0
+RES_CMP lc
+LOOP {
+    MOVE lc, CMP i, 6
+    WHEN lc {
+        LESS -> {
+            PRINT "i="
+            PRINT i
+            INC i, 1
+        }
+    }
+} LESS lc
+
+# do-while guessing (non-deterministic RAND, one demo iteration)
+RES_INT secret
+MOVE secret, RAND 1, 10
+RES_CMP gc
+LOOP {
+    RES_INT guess
+    PRINT "Guess 1..10: "
+    ASK guess ""
+    MOVE gc, CMP guess, secret
+    WHEN gc {
+        EQUAL   -> PRINT "Correct!"
+        LESS    -> PRINT "Too low!"
+        GREATER -> PRINT "Too high!"
+    }
+} NOTEQUAL gc
+
+# --- Functions ---
+# Pure add function and call
+FUNC add2(x, y) {
+    RETURN x + y
+}
+RES_INT addRes
+MOVE addRes, add2(10, 20)
+PRINT "add2(10,20)="
+PRINT addRes
+
+# Fibonacci using recursion (small n)
+FUNC fibonacci(n) {
+    IF ( n <= 1 ) RETURN n
+    RETURN fibonacci(n - 1) + fibonacci(n - 2)
+}
+RES_INT fi
+MOVE fi, fibonacci(7)
+PRINT "fib(7)="
+PRINT fi
+
+# --- Error Handling (status-only pattern) ---
+# Simulate read_file returning INT status: 0 OK, non-zero error
+FUNC read_file(path, out) {
+    # Demo: pretend fail when path == ""
+    IF ( path == "" ) RETURN 2
+    # fake: set out to path reversed
+    RETURN 0
+}
+RES_INT status
+RES_STR out
+MOVE status, read_file("demo.txt", out)
+WHEN CMP status, 0 {
+    EQUAL    -> PRINT "read_file OK"
+    NOTEQUAL -> PRINT "read_file error"
+}
