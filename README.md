@@ -792,6 +792,64 @@ WHEN, DEFAULT, LOOP, FUNC, RET, CALL, MOVE, PRINT, ASK,
 RES_INT, RES_STR, RES_CMP,
 ADD, SUB, MUL, DIV, MOD, EXP, INC, DEC,
 CMP, EQUAL, NOTEQUAL, LESS, LESSEQ, GREATER, GREATEREQ,
+
 LEN, CHAR, SUBSTR, SETCHAR
+
+
+**Logical Operators**
+
+Bridge supports both symbolic and word forms for logical operators:
+
+- Symbolic: `&&`, `||`, `!`
+- Word forms: `and`, `or`, `not` (word forms map to same semantics)
+
+Precedence and behavior:
+
+- Highest: `!` / `not` (negation)
+- Next: `&&` / `and`
+- Lowest: `||` / `or`
+- Evaluation is left-to-right and short-circuiting:
+    - For `A && B`, `B` is evaluated only if `A` is true.
+    - For `A || B`, `B` is evaluated only if `A` is false.
+
+Simple examples:
+
+```bridge
+# Symbolic forms
+MOVE a, 5
+MOVE b, 10
+# true && false -> false
+MOVE t, ( a < b ) && ( b < 5 )
+
+# Word forms (equivalent)
+MOVE u, ( a < b ) and ( b < 5 )
+
+# Negation
+MOVE v, ! ( a == b )
+
+# Short-circuit example: second operand not evaluated when first decides result
+# (illustrative; side-effect functions omitted)
+```
+
+Combining with predicates and tagged results:
+
+```bridge
+# Predicates (CMP) and RES predicates can be combined with logical operators
+MOVE cmpRes, CMP a, b
+WHEN ( LESS cmpRes ) && ( someFlag ) {
+        PRINT "less and flag true"
+}
+
+MOVE res, parse_int("123")
+WHEN OK res || ( someFallbackCondition ) {
+        # If OK res is true, fallback is not evaluated
+}
+```
+
+Guidelines:
+
+- Use word forms (`and`/`or`/`not`) when readability is preferred; symbolic forms are concise.
+- Prefer short-circuiting to avoid unnecessary side effects in right-hand operands.
+- Combine predicates (CMP/RES) with boolean conditions by testing the predicate (e.g., `LESS cmpRes`) or using helper conversions as needed.
 
 
