@@ -1,0 +1,8 @@
+RES_INT i
+MOVE i, 0
+
+# do-while style: run body, then continue while i < 5
+LOOP {
+    PRINT i
+    INC i, 1
+} LESS i, 5

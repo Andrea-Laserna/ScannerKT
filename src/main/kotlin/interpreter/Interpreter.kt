@@ -191,22 +191,10 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
         do {
             executeBlock(stmt.body, Environment(environment))
             // Evaluate tail predicate; if absent, run once
-        } while (stmt.tailPredicate?.let { isPredicateTrue(it) } == true)
+        } while (stmt.tailPredicate?.let { isTruthy(evaluate(it)) } == true)
     }
 
-    override fun visitIfStatement(stmt: Statement.If) {
-        if (isTruthy(evaluate(stmt.condition))) {
-            execute(stmt.thenBranch)
-        } else if (stmt.elseBranch != null) {
-            execute(stmt.elseBranch)
-        }
-    }
-
-    override fun visitWhileStatement(stmt: Statement.While) {
-        while (isTruthy(evaluate(stmt.condition))) {
-            execute(stmt.body)
-        }
-    }
+    // IF/WHILE removed
 
     override fun visitFunctionStatement(stmt: Statement.Function) {
         val function = LoxFunction(stmt, environment)
@@ -367,12 +355,12 @@ class Interpreter : ExpressionVisitor<Any?>, StatementVisitor<Unit> {
     override fun visitBinaryExpression(expr: Expression.Binary): Any? {
         val left = evaluate(expr.left)
         // Short-circuit logical operators
-        if (expr.operation.lexeme == "or" || expr.operation.lexeme == "||") {
+        if (expr.operation.lexeme == "or" || expr.operation.lexeme == "||" || expr.operation.lexeme == "OR") {
             val lv = evaluate(expr.left)
             if (isTruthy(lv)) return lv
             return evaluate(expr.right)
         }
-        if (expr.operation.lexeme == "and" || expr.operation.lexeme == "&&") {
+        if (expr.operation.lexeme == "and" || expr.operation.lexeme == "&&" || expr.operation.lexeme == "AND") {
             val lv = evaluate(expr.left)
             if (!isTruthy(lv)) return lv
             return evaluate(expr.right)

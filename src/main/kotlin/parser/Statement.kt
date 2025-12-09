@@ -72,15 +72,7 @@ sealed class Statement {
         override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitDecStatement(this)
     }
 
-    // If-Else statement: if (condition) thenBranch else elseBranch?
-    data class If(val condition: Expression, val thenBranch: Statement, val elseBranch: Statement?) : Statement() {
-        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitIfStatement(this)
-    }
-
-    // While loop: while (condition) body
-    data class While(val condition: Expression, val body: Statement) : Statement() {
-        override fun <R> accept(visitor: StatementVisitor<R>): R = visitor.visitWhileStatement(this)
-    }
+    // IF and WHILE removed from language
 
     // Function declaration: fun name(params) { body }
     data class Function(val name: Token, val params: List<Token>, val body: List<Statement>) : Statement() {

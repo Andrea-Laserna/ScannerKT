@@ -56,7 +56,7 @@ enum class TokenType {
     RAISE,
 
     // Other Keywords (compat / reserved)
-    AND, CLASS, FOR, FUN, IF, OR, SUPER, NOT, WHILE,
+    AND, CLASS, FOR, FUN, OR, SUPER, NOT,
 
     // End of File
     EOF

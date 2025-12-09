@@ -3,7 +3,7 @@ package parser
 import main.Bridge
 import scanner.Token
 import scanner.TokenType // Ensure TokenType is imported
-import kotlin.math.exp
+// import removed: kotlin.math.exp was unnecessary
 
 // ps. ga base lng ko sng algo sa LEC4 slide ni ma'am ara
 
@@ -102,12 +102,7 @@ class Parser(val tokens: TokenStream) {
         if (match(TokenType.PRINT)) {
             return printStatement()
         }
-        if (match(TokenType.IF)) {
-            return ifStatement()
-        }
-        if (match(TokenType.WHILE)) {
-            return whileStatement()
-        }
+        // IF/WHILE removed
         if (match(TokenType.FOR)) {
             return forStatement()
         }
@@ -190,24 +185,7 @@ class Parser(val tokens: TokenStream) {
         return Statement.Return(keyword, value)
     }
 
-    // ifStmt → "if" "(" expression ")" statement ( "else" statement )? ;
-    private fun ifStatement(): Statement {
-        consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.")
-        val condition = expr()
-        consume(TokenType.RIGHT_PAREN, "Expect ')' after if condition.")
-        val thenBranch = statement()
-        val elseBranch = if (match(TokenType.DEFAULT)) statement() else null
-        return Statement.If(condition, thenBranch, elseBranch)
-    }
-
-    // whileStmt → "while" "(" expression ")" statement ;
-    private fun whileStatement(): Statement {
-        consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
-        val condition = expr()
-        consume(TokenType.RIGHT_PAREN, "Expect ')' after while condition.")
-        val body = statement()
-        return Statement.While(condition, body)
-    }
+    // IF/WHILE: removed entirely; no handler functions
 
     // forStmt → "for" "(" ( varDecl | exprStmt | ";" ) expression? ";" expression? ")" statement ;
     // Desugar to while
@@ -238,8 +216,11 @@ class Parser(val tokens: TokenStream) {
             body = Statement.Block(listOf(body, Statement.ExpressionStatement(increment)))
         }
 
-        val whileCond = condition ?: Expression.Literal(true)
-        body = Statement.While(whileCond, body)
+        val loopCond = condition ?: Expression.Literal(true)
+        val loopStmt = Statement.Loop(listOf(body), loopCond)
+        return if (initializer != null) {
+            Statement.Block(listOf(initializer, loopStmt))
+        } else loopStmt
 
         return if (initializer != null) {
             Statement.Block(listOf(initializer, body))
@@ -330,22 +311,23 @@ class Parser(val tokens: TokenStream) {
         return tokens.advance()!!
     }
 
-    // LOOP { body } tailPredicate?
+    // LOOP forms:
+    // 1) LOOP { body } tailPredicate?
+    // 2) LOOP tailPredicate { body }
     private fun loopStatement(): Statement {
-        consume(TokenType.LEFT_BRACE, "Expect '{' after LOOP.")
+        // If a block starts immediately, parse body first then optional tail
+        if (tokens.nextToken?.type == TokenType.LEFT_BRACE) {
+            tokens.advance()
+            val body = block()
+            val tailPred: Expression? = if (tokens.nextToken?.type != TokenType.EOF && tokens.nextToken?.type != TokenType.SEMICOLON) {
+                expr()
+            } else null
+            return Statement.Loop(body, tailPred)
+        }
+        // Otherwise, parse a predicate expression first, then the body block
+        val tailPred = expr()
+        consume(TokenType.LEFT_BRACE, "Expect '{' after LOOP predicate.")
         val body = block()
-        // Optional tail predicate: one of predicate keywords followed by an expression (loosely parsed)
-        val tailPred: Expression? = if (isPredicateKeyword(tokens.nextToken?.type)) {
-            val name = tokens.advance()!!
-            // Optional argument expression after predicate; if not, use empty args
-            val args = mutableListOf<Expression>()
-            // If there's anything meaningful (not RIGHT_BRACE/EOF/SEMICOLON), parse one expression
-            if (tokens.nextToken != null && tokens.nextToken?.type !in setOf(TokenType.EOF)) {
-                // Be tolerant: parse until we cannot
-                args.add(expr())
-            }
-            Expression.PredCall(name, args)
-        } else null
         return Statement.Loop(body, tailPred)
     }
 
@@ -480,6 +462,21 @@ class Parser(val tokens: TokenStream) {
             // CONCAT is treated as a variadic prefix operator: CONCAT expr (',' [CONCAT]? expr)*
             if (match(TokenType.CONCAT)) {
                 return concatExpr()
+        }
+        // Predicate call: e.g., NOTEQUAL c  or EQUAL a,b
+        if (isPredicateKeyword(tokens.nextToken?.type)) {
+            val name = tokens.advance()!!
+            val args = mutableListOf<Expression>()
+            // Support simple one-arg form and comma-separated args
+            // Try to parse first arg if present and not a statement boundary
+            if (tokens.nextToken != null && tokens.nextToken?.type !in setOf(
+                    TokenType.RIGHT_BRACE, TokenType.SEMICOLON)) {
+                args.add(unary())
+                while (match(TokenType.COMMA)) {
+                    args.add(unary())
+                }
+            }
+            return Expression.PredCall(name, args)
         }
         // Bridge-style CALL keyword for function call: CALL ident(args)
         if (match(TokenType.CALL)) {
@@ -633,8 +630,8 @@ class Parser(val tokens: TokenStream) {
         while (tokens.nextToken?.type != TokenType.EOF) {
             if (tokens.current?.type == TokenType.SEMICOLON) return
             when (tokens.nextToken?.type) {
-                TokenType.CLASS, TokenType.FUN, TokenType.VAR, TokenType.FOR, TokenType.IF, 
-                TokenType.WHILE, TokenType.PRINT, TokenType.RETURN, TokenType.ASK -> return // Added ASK
+                TokenType.CLASS, TokenType.FUN, TokenType.VAR, TokenType.FOR,
+                TokenType.PRINT, TokenType.RETURN, TokenType.ASK -> return
                 else -> tokens.advance()
             }
         }

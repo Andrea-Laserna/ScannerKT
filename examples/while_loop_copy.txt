@@ -1,0 +1,28 @@
+RES_CMP c
+RES_INT secret
+MOVE secret, RAND 1, 100
+RES_INT tries
+MOVE tries, 10
+RES_CMP game_over
+
+LOOP {
+    RES_INT guess
+    ASK guess "Guess:"
+
+    # compute compare result once per iteration
+    MOVE c, CMP guess, secret
+
+    WHEN c {
+        EQUAL   -> PRINT "Correct!"
+        LESS    -> PRINT "Too low!"
+        GREATER -> PRINT "Too high!"
+    }
+    DEC tries, 1
+    MOVE game_over, CMP tries, 0
+
+} NOTEQUAL c AND GREATER game_over
+
+WHEN game_over {
+    EQUAL   -> PRINT "Game over!"
+    GREATER -> PRINT "You guessed it in time."
+}

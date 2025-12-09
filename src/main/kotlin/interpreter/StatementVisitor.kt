@@ -18,8 +18,7 @@ interface StatementVisitor<R> {
     fun visitDecStatement(stmt: Statement.Dec): R
     fun visitWhenStatement(stmt: Statement.When): R
     fun visitLoopStatement(stmt: Statement.Loop): R
-    fun visitIfStatement(stmt: Statement.If): R
-    fun visitWhileStatement(stmt: Statement.While): R
+    // IF/WHILE removed
     fun visitFunctionStatement(stmt: Statement.Function): R
     fun visitReturnStatement(stmt: Statement.Return): R
 }

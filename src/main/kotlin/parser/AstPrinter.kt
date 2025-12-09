@@ -110,24 +110,7 @@ class AstPrinter {
                 }
                 print(")")
             }
-            is Statement.If -> {
-                print("(if ")
-                printTree(statement.condition)
-                print(" then ")
-                printStatement(statement.thenBranch)
-                if (statement.elseBranch != null) {
-                    print(" else ")
-                    printStatement(statement.elseBranch)
-                }
-                print(")")
-            }
-            is Statement.While -> {
-                print("(while ")
-                printTree(statement.condition)
-                print(" ")
-                printStatement(statement.body)
-                print(")")
-            }
+            // IF/WHILE removed
             is Statement.Function -> {
                 print("(func ${statement.name.lexeme} (")
                 statement.params.forEachIndexed { idx, p ->

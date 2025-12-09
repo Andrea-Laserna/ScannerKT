@@ -145,8 +145,10 @@ PRINT addRes
 
 # Fibonacci using recursion (small n)
 FUNC fibonacci(n) {
-    IF ( n <= 1 ) RETURN n
-    RETURN fibonacci(n - 1) + fibonacci(n - 2)
+    WHEN CMP n, 1 {
+        LESSEQ -> RETURN n
+        DEFAULT -> RETURN fibonacci(n - 1) + fibonacci(n - 2)
+    }
 }
 RES_INT fi
 MOVE fi, fibonacci(7)
@@ -156,10 +158,14 @@ PRINT fi
 # --- Error Handling (status-only pattern) ---
 # Simulate read_file returning INT status: 0 OK, non-zero error
 FUNC read_file(path, out) {
-    # Demo: pretend fail when path == ""
-    IF ( path == "" ) RETURN 2
-    # fake: set out to path reversed
-    RETURN 0
+    # Demo: pretend fail when path is empty
+    WHEN LEN path {
+        EQUAL -> RETURN 2
+        DEFAULT -> {
+            # fake: set out to path reversed (omitted)
+            RETURN 0
+        }
+    }
 }
 RES_INT status
 RES_STR out

@@ -89,11 +89,11 @@ object Keywords{
         "CLASS" to TokenType.CLASS,
         "FOR" to TokenType.FOR,
         "FUN" to TokenType.FUN,
-        "IF" to TokenType.IF,
+        // Removed IF keyword; using OR (word form) is retained
         "OR" to TokenType.OR,
         "SUPER" to TokenType.SUPER,
         "NOT" to TokenType.NOT,
-        "WHILE" to TokenType.WHILE,
+        // Removed WHILE keyword
         "VAR" to TokenType.VAR
     )
 }
