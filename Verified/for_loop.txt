@@ -1,0 +1,18 @@
+RES_INT i
+RES_INT end
+RES_CMP c
+
+MOVE i, 0
+MOVE end, 10
+MOVE c, CMP i, end
+
+LOOP LESS c {
+    WHEN c {
+        LESS -> {
+            PRINT i
+            INC i, 1
+            # recompute before tail check
+            MOVE c, CMP i, end
+        }
+    }
+}
